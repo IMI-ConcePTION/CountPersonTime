@@ -46,13 +46,13 @@ Input
 
 # Structure of output
 *	If aggregate is FALSE:
-  *	person identifier (same name as in the input)
-  *	timeframe; if timeframe was ‘yearly’ this, this contains the list of calendar years from start_study_time to end_study_time; if timeframe was ‘monthly’ this, this contains the list of calendar months from start_study_time to end_study_time; if timeframe was ‘weekly’ this, this contains the list of calendar weeks from start_study_time to end_study_time; if timeframe was ‘daily’ this, this contains the list of days from start_study_time to end_study_time
-  *	strata (if specified): contains the values of the strata observed by the person in the timeframes
-  *	ageband (if specified): contains the values of the agebands observed by the person in the timeframes
-  *	persontime: contains the overall person time of the person in that timeframe in those strata/agebands; unit of persontime is always days
-  *	persontime for each outcome: contains the person time of the person in that timeframe in those strata/agebands, considering that outcome as a censoring criterion; 
-  *	a binary variable for each outcome, named as the corresponding outcome, containing 1 if the person experienced the outcome at the end of that timeframe
+ *	person identifier (same name as in the input)
+ *	timeframe; if timeframe was ‘yearly’ this, this contains the list of calendar years from start_study_time to end_study_time; if timeframe was ‘monthly’ this, this contains the list of calendar months from start_study_time to end_study_time; if timeframe was ‘weekly’ this, this contains the list of calendar weeks from start_study_time to end_study_time; if timeframe was ‘daily’ this, this contains the list of days from start_study_time to end_study_time
+ *	strata (if specified): contains the values of the strata observed by the person in the timeframes
+ *	ageband (if specified): contains the values of the agebands observed by the person in the timeframes
+ *	persontime: contains the overall person time of the person in that timeframe in those strata/agebands; unit of persontime is always days
+ *	persontime for each outcome: contains the person time of the person in that timeframe in those strata/agebands, considering that outcome as a censoring criterion; 
+ *	a binary variable for each outcome, named as the corresponding outcome, containing 1 if the person experienced the outcome at the end of that timeframe
 
 * If aggregate is TRUE:
   * The same as before, but persontime variables are aggregated per timeframe and, if specified, per ageband and/or strata
