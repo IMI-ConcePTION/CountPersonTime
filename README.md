@@ -1,5 +1,5 @@
 # CountPersonTime
-Calculation of persontime prior to events 
+Calculation of persontime prior to events. 
 
 # Context
 
