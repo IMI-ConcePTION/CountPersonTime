@@ -23,6 +23,7 @@ Input_file1[,date_event:= as.Date(date_event,"%Y%m%d")]
 
 #Input_file2[2,4]<-NA
 
+
 Output_file1<-CountPersonTime(
   
   Dataset_events = Input_file1, 
