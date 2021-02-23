@@ -14,15 +14,15 @@ CreatePersonTime takes as input a dataset where disjoint observation windows per
 Input
 
 # Structure of input data: 
-a “time” dataset with
--	a person identifier
--	start and end date of validity of the information of each record
--	birth date of the person(optional); if multiple record for the same person are available, this date should be the same
--	a list of (possibly time-dependent) variables (optional)
--	an “events” dataset with
--	the person identifier
--	a variable date
--	a variable containing name of the event
+* a “time” dataset with
+  * a person identifier
+  * start and end date of validity of the information of each record
+  * birth date of the person(optional); if multiple record for the same person are available, this date should be the same
+  * a list of (possibly time-dependent) variables (optional)
+* an “events” dataset with
+  * the person identifier
+  * a variable date
+  * a variable containing name of the event
 
 # Main parameters
 -	Dataset_events (str): name of the dataset containing events: it must be a file in memory
@@ -45,16 +45,16 @@ a “time” dataset with
 
 
 # Structure of output
-o	If aggregate is FALSE:
--	person identifier (same name as in the input)
--	timeframe; if timeframe was ‘yearly’ this, this contains the list of calendar years from start_study_time to end_study_time; if timeframe was ‘monthly’ this, this contains the list of calendar months from start_study_time to end_study_time; if timeframe was ‘weekly’ this, this contains the list of calendar weeks from start_study_time to end_study_time; if timeframe was ‘daily’ this, this contains the list of days from start_study_time to end_study_time
--	strata (if specified): contains the values of the strata observed by the person in the timeframes
--	ageband (if specified): contains the values of the agebands observed by the person in the timeframes
--	persontime: contains the overall person time of the person in that timeframe in those strata/agebands; unit of persontime is always days
--	persontime for each outcome: contains the person time of the person in that timeframe in those strata/agebands, considering that outcome as a censoring criterion; 
--	a binary variable for each outcome, named as the corresponding outcome, containing 1 if the person experienced the outcome at the end of that timeframe
+*	If aggregate is FALSE:
+  *	person identifier (same name as in the input)
+  *	timeframe; if timeframe was ‘yearly’ this, this contains the list of calendar years from start_study_time to end_study_time; if timeframe was ‘monthly’ this, this contains the list of calendar months from start_study_time to end_study_time; if timeframe was ‘weekly’ this, this contains the list of calendar weeks from start_study_time to end_study_time; if timeframe was ‘daily’ this, this contains the list of days from start_study_time to end_study_time
+  *	strata (if specified): contains the values of the strata observed by the person in the timeframes
+  *	ageband (if specified): contains the values of the agebands observed by the person in the timeframes
+  *	persontime: contains the overall person time of the person in that timeframe in those strata/agebands; unit of persontime is always days
+  *	persontime for each outcome: contains the person time of the person in that timeframe in those strata/agebands, considering that outcome as a censoring criterion; 
+  *	a binary variable for each outcome, named as the corresponding outcome, containing 1 if the person experienced the outcome at the end of that timeframe
 
-If aggregate is TRUE:
--	The same as before, but persontime variables are aggregated per timeframe and, if specified, per ageband and/or strata
+* If aggregate is TRUE:
+  * The same as before, but persontime variables are aggregated per timeframe and, if specified, per ageband and/or strata
 
 
