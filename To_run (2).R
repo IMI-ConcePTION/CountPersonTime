@@ -1,13 +1,12 @@
 rm(list = ls(all=TRUE))
-if (!require("data.table")) install.packages("data.table")
+
+library(CountPersonTime)
 library(data.table)
-path<-"Y:/Studies/ConcePTION/B_Documentation/2 Protocol_DSMB_Monitoring/WP 7.6 Data Characterization SAP/tmp_RE/Coding/RE_CountPersonTime/V9"
 
-r_file<-"CountPersonTimeV9.R"
-empty <- T
 
-        
-source(paste0(path,"/",r_file))
+
+path<-"./Input datesets"
+
 
 #Input_file<-fread(paste0(path,"/input_old.csv"), sep = ",")
 Input_file1<-fread(paste0(path,"/input_events.csv"), sep = ",")
@@ -24,13 +23,13 @@ Input_file1[,date_event:= as.Date(date_event,"%Y%m%d")]
 #Input_file2[2,4]<-NA
 
 Output_file1<-CountPersonTime(
-  
-  Dataset_events = Input_file1, 
+
+  Dataset_events = Input_file1,
   Dataset = Input_file2,
   Person_id = "person_id",
   Start_study_time = "20150101",
   End_study_time = "20191231",
-  Start_date = "start_date", 
+  Start_date = "start_date",
   End_date = "end_date",
   Birth_date = "date_birth",
   Strata = c("sex","city"),
@@ -61,12 +60,12 @@ filepop2[,birthdate := dmy(birthdate)]
 if(empty==T) fileevents1 <- fileevents1[-1:-2,]
 
 Output_file2<-CountPersonTime(
-  Dataset_events = fileevents2, 
+  Dataset_events = fileevents2,
   Dataset = filepop2,
   Person_id = "id",
   Start_study_time = "20100101",
   End_study_time = "20191231",
-  Start_date = "datestart", 
+  Start_date = "datestart",
   End_date = "dateend",
   Birth_date = "birthdate",
   Strata = c("job","gender"),
@@ -98,12 +97,12 @@ if(empty==T) fileevents3 <- fileevents3[-1:-2,]
 
 
 Output_file3<-CountPersonTime(
-  Dataset_events = fileevents3, 
+  Dataset_events = fileevents3,
   Dataset = filepop3,
   Person_id = "id",
   Start_study_time = "20100101",
   End_study_time = "20191231",
-  Start_date = "datestart", 
+  Start_date = "datestart",
   End_date = "dateend",
   Birth_date = "birthdate",
   Strata = c("job","gender"),
@@ -124,13 +123,13 @@ Output_file3<-CountPersonTime(
 load(paste0(path,"/D4_study_population.RData")) # fread(paste0(dirinput,"PERSONS.csv"))
 filepop4 <- as.data.table(D4_study_population)
 
-load(paste0(path,"/datasetOUTCOMES_2.RData")) 
+load(paste0(path,"/datasetOUTCOMES_2.RData"))
 fileevents4 <- as.data.table(datasetOUTCOMES)
 
 
 
 Output_file4<-CountPersonTime(
-  Dataset_events = fileevents4, 
+  Dataset_events = fileevents4,
   Dataset = filepop4,
   Person_id = "person_id",
   Start_study_time = "20170101",
@@ -173,12 +172,12 @@ filepop5[,birthdate := dmy(birthdate)]
 if(empty==T) fileevents5 <- fileevents5[-1:-2,]
 
 Output_file5<-CountPersonTime(
-  Dataset_events = fileevents5, 
+  Dataset_events = fileevents5,
   Dataset = filepop5,
   Person_id = "id",
   Start_study_time = "20100101",
   End_study_time = "20191231",
-  Start_date = "datestart", 
+  Start_date = "datestart",
   End_date = "dateend",
   Birth_date = "birthdate",
   Strata = c("gender"),
@@ -191,6 +190,4 @@ Output_file5<-CountPersonTime(
   include_remaning_ages = T,
   Aggregate = F
 )
-
-test change 22
 
