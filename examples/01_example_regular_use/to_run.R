@@ -27,15 +27,11 @@ Input_file1[,date_event := as.character(date_event)]
 Input_file1[,date_event:= as.Date(date_event,"%Y%m%d")]
 
 
-
-#Input_file2[2,4]<-NA
-
-
 Output_file1<-CountPersonTime(
   Dataset_events = Input_file1, 
   Dataset = Input_file2,
   Person_id = "person_id",
-  Start_study_time = "20150101",
+  Start_study_time = "20120101",
   End_study_time = "20191231",
   Start_date = "start_date", 
   End_date = "end_date",
