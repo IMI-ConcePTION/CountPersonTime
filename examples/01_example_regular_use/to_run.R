@@ -27,7 +27,7 @@ Input_file1[,date_event := as.character(date_event)]
 Input_file1[,date_event:= as.Date(date_event,"%Y%m%d")]
 
 
-Output_file1<-CountPersonTime(
+Output_file <- CountPersonTime(
   Dataset_events = Input_file1, 
   Dataset = Input_file2,
   Person_id = "person_id",
@@ -47,3 +47,4 @@ Output_file1<-CountPersonTime(
   Aggregate = F
 )
 
+View(Output_file)
