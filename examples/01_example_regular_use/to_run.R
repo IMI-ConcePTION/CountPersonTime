@@ -9,7 +9,7 @@ thisdir <- setwd(dirname(rstudioapi::getSourceEditorContext()$path))
 thisdir <- setwd(dirname(rstudioapi::getSourceEditorContext()$path))
 
 #load function
-source(paste0(thisdir,"/../../CountPersonTimeV9.R"))
+source(paste0(thisdir,"/../../CountPersonTimeV12.4.R"))
 
 # load data.table
 if (!require("data.table")) install.packages("data.table")
