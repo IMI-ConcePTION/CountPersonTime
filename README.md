@@ -1,4 +1,4 @@
 # CountPersonTime
 
-The wiki of this function if (here)[https://github.com/IMI-ConcePTION/CountPersonTime/wiki]
+The wiki of this function is [here](https://github.com/IMI-ConcePTION/CountPersonTime/wiki)
 
