@@ -1,0 +1,9 @@
+Differnces with 12.4
+
+- Some loops are replace by a procedure using the function foverlaps.In 12.4 inly in row 98 this function is used. In V13 it is alos used in rows 167, 225, 412 and 463.
+  These rows do represent the different approach used in 13 compared to 12.
+
+- Also in 13 it is possible to add recurrent and not recurrent in 1 run. This was added because of a request but I would not use the function in this way myself.
+
+- I added an extra sort because I was afraid that sorting was disturbed by data.table actions.I was not able to find proper documentation about the data.table package concerning which actions affect the order of the dataframe 
+	See row 317, 324 in 13.7. 
