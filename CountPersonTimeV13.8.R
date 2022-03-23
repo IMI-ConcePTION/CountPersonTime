@@ -4,9 +4,13 @@
 #Organisation: UMC Utrecht, Utrecht, The Netherlands
 #Date: 15/07/2021
 
-CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_study_time, End_study_time, Start_date, End_date, Birth_date = NULL,Rec_period = NULL, Strata = NULL,Outcomes_nrec = NULL,Outcomes_rec = NULL, Name_event = NULL, Date_event = NULL, Age_bands = NULL, Unit_of_age = "year" , Increment = "year", include_remaning_ages = T, Aggregate = T, print = F, check_overlap = T){
+CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_study_time, End_study_time, Start_date,
+                            End_date, Birth_date = NULL,Rec_period = NULL, Strata = NULL,Outcomes_nrec = NULL,
+                            Outcomes_rec = NULL, Name_event = NULL, Date_event = NULL, Age_bands = NULL,
+                            Unit_of_age = "year" , Increment = "year", include_remaning_ages = T, Aggregate = T,
+                            print = F, check_overlap = T, save_intermediate = NULL, load_intermediate = F){
   
-  if(print) print("Version 13.7")
+  if(print) print("Version 13.8")
   # Check if demanded R packages are installed, install if not,  and activate
   ################################################################################################################################
   if(print) print("Check packages data.table and lubridate")
@@ -20,88 +24,101 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
   
   if(any(Outcomes_rec %in% Outcomes_nrec)){stop("Overlapping event names for Outcomes_rec and Outcomes_nrec")}
   
-  
-  #Set character input for study dates to date format
-  ################################################################################################################################
-  if(print) print("Assign date format to Start_study_time and End_study_time")
-  Start_study_time<-as.IDate(as.character(Start_study_time),"%Y%m%d")
-  End_study_time<-as.IDate(as.character(End_study_time),"%Y%m%d")
-  ################################################################################################################################
-  
-  #
-  ################################################################################################################################
-  end_date_new <- as.Date(ifelse(End_study_time <= Sys.Date(), Sys.Date(), End_study_time + 1),origin = "1970-01-01")
-  ################################################################################################################################
-  
-  #check if study start and stop dates are valid
-  ################################################################################################################################
-  
-  if(print) print("Check if Start_study_time and End_study_time are valid")
-  
-  if(!sum(Start_study_time==seq.Date(as.Date("19000101","%Y%m%d"),Sys.Date(),by = Increment))==1){
-    
-    if(Increment == "year"){stop("Change the start date to the first of january. Wrong study start date can produce invalid results.")}
-    if(Increment == "month"){stop("Change the start date to the first of month. Wrong study start date can produce invalid results.")}
-    if(Increment == "week"){stop("Change the start date to a monday. Wrong study start date can produce invalid results.")}
-    
+  if (!is.logical(load_intermediate)) {stop("Parameter 'load_intermediate' accepts only logical constants")}
+  if (!missing(save_intermediate)) {
+    tryCatch(dirname(save_intermediate), error = function(e)
+      stop("Parameter 'save_intermediate' accepts only valid filepaths with already existing folders"))
   }
   
-  if(!sum(End_study_time==seq.Date(as.Date("19000101","%Y%m%d"),end_date_new ,by = Increment)-1)==1){
+  if (load_intermediate) {
+    if (!missing(save_intermediate) && file.exists(save_intermediate)) {
+      load(save_intermediate)
+    } else {
+      Dataset <- as.data.table(Dataset)
+    }
+  } else {
     
-    if(Increment == "year"){stop("Change the end date to the 31th of december. Wrong study start date can produce invalid results.")}
-    if(Increment == "month"){stop("Change the end date to the last day of the month. Wrong study start date can produce invalid results.")}
-    if(Increment == "week"){stop("Change the end date to a sunday. Wrong study start date can produce invalid results.")}
+    #Set character input for study dates to date format
+    ################################################################################################################################
+    if(print) print("Assign date format to Start_study_time and End_study_time")
+    Start_study_time<-as.IDate(as.character(Start_study_time),"%Y%m%d")
+    End_study_time<-as.IDate(as.character(End_study_time),"%Y%m%d")
+    ################################################################################################################################
     
-  }
-  
-  gc()
-  
-  ################################################################################################################################
-  
-  date_cols<-c(Start_date,End_date,Birth_date)
-  
-  # Reduce memory size using integers
-  Dataset[, c(date_cols) := lapply(.SD, as.IDate), .SDcols = date_cols]
-  #Dataset[, c(Strata) := lapply(.SD, as.integer), .SDcols = Strata]
-  gc()
-  
-  
-  #Check if start, end and birth date are all filled. If end date is not filled it will be replaced by the and study date
-  ################################################################################################################################
-  
-
-  if(print) print("Check if date columns in input data are valid and in correct order")
-  if(sum(is.na(Dataset[,.(get(Start_date))]))>0){stop("Empty start dates")}
-  if(!is.null(Age_bands)){if(sum(is.na(Dataset[,.(get(Birth_date))]))>0){stop("Empty birth dates")}}
-  if(sum(is.na(Dataset[,.(get(End_date))]))>0){print(paste0(sum(is.na(Dataset[,.(get(End_date))]))," empty end dates will be filled with the end study date. This may cause overlapping intervals"))}
-  Dataset[is.na(get(End_date)),eval(End_date) := End_study_time]
-  
-  gc()
-  
-  #Check the order of dates
-  ################################################################################################################################
-  wrong_End_date<-nrow(Dataset[get(Start_date)>get(End_date),])
-  if (wrong_End_date>0){warning(paste0(wrong_End_date," end date(s) prior to start date"))}
-  wrong_Start_date<-nrow(Dataset[get(Start_date)>Sys.Date(),])
-  if (wrong_Start_date>0){warning(paste0(wrong_Start_date," start date(s) in future"))}
-  
-  if(!is.null(Age_bands)){
-    wrong_Birth_date<-nrow(Dataset[get(Start_date)<get(Birth_date),])
-    if (wrong_Birth_date>0){warning(paste0(wrong_Start_date," start date(s) before birth date"))}}
-  ################################################################################################################################
-  
-  #Check if birthdays are unique
-  ################################################################################################################################
-  #if(!is.null(Age_bands)){
-   # if(nrow(Dataset[,uniqueN(get(Birth_date)), by = Person_id][V1>1,])!=0){stop("Persons with several birth dates") }
-  #}
-  ################################################################################################################################
-  
-  #Check if the subjects have overlap in the time intervals (within strata???), defined by end-start date.
-  ################################################################################################################################
-  
-  if(check_overlap){
-  
+    #
+    ################################################################################################################################
+    end_date_new <- as.Date(ifelse(End_study_time <= Sys.Date(), Sys.Date(), End_study_time + 1),origin = "1970-01-01")
+    ################################################################################################################################
+    
+    #check if study start and stop dates are valid
+    ################################################################################################################################
+    
+    if(print) print("Check if Start_study_time and End_study_time are valid")
+    
+    if(!sum(Start_study_time==seq.Date(as.Date("19000101","%Y%m%d"),Sys.Date(),by = Increment))==1){
+      
+      if(Increment == "year"){stop("Change the start date to the first of january. Wrong study start date can produce invalid results.")}
+      if(Increment == "month"){stop("Change the start date to the first of month. Wrong study start date can produce invalid results.")}
+      if(Increment == "week"){stop("Change the start date to a monday. Wrong study start date can produce invalid results.")}
+      
+    }
+    
+    if(!sum(End_study_time==seq.Date(as.Date("19000101","%Y%m%d"),end_date_new ,by = Increment)-1)==1){
+      
+      if(Increment == "year"){stop("Change the end date to the 31th of december. Wrong study start date can produce invalid results.")}
+      if(Increment == "month"){stop("Change the end date to the last day of the month. Wrong study start date can produce invalid results.")}
+      if(Increment == "week"){stop("Change the end date to a sunday. Wrong study start date can produce invalid results.")}
+      
+    }
+    
+    gc()
+    
+    ################################################################################################################################
+    
+    date_cols<-c(Start_date,End_date,Birth_date)
+    
+    # Reduce memory size using integers
+    Dataset[, c(date_cols) := lapply(.SD, as.IDate), .SDcols = date_cols]
+    #Dataset[, c(Strata) := lapply(.SD, as.integer), .SDcols = Strata]
+    gc()
+    
+    
+    #Check if start, end and birth date are all filled. If end date is not filled it will be replaced by the and study date
+    ################################################################################################################################
+    
+    
+    if(print) print("Check if date columns in input data are valid and in correct order")
+    if(sum(is.na(Dataset[,.(get(Start_date))]))>0){stop("Empty start dates")}
+    if(!is.null(Age_bands)){if(sum(is.na(Dataset[,.(get(Birth_date))]))>0){stop("Empty birth dates")}}
+    if(sum(is.na(Dataset[,.(get(End_date))]))>0){print(paste0(sum(is.na(Dataset[,.(get(End_date))]))," empty end dates will be filled with the end study date. This may cause overlapping intervals"))}
+    Dataset[is.na(get(End_date)),eval(End_date) := End_study_time]
+    
+    gc()
+    
+    #Check the order of dates
+    ################################################################################################################################
+    wrong_End_date<-nrow(Dataset[get(Start_date)>get(End_date),])
+    if (wrong_End_date>0){warning(paste0(wrong_End_date," end date(s) prior to start date"))}
+    wrong_Start_date<-nrow(Dataset[get(Start_date)>Sys.Date(),])
+    if (wrong_Start_date>0){warning(paste0(wrong_Start_date," start date(s) in future"))}
+    
+    if(!is.null(Age_bands)){
+      wrong_Birth_date<-nrow(Dataset[get(Start_date)<get(Birth_date),])
+      if (wrong_Birth_date>0){warning(paste0(wrong_Start_date," start date(s) before birth date"))}}
+    ################################################################################################################################
+    
+    #Check if birthdays are unique
+    ################################################################################################################################
+    #if(!is.null(Age_bands)){
+    # if(nrow(Dataset[,uniqueN(get(Birth_date)), by = Person_id][V1>1,])!=0){stop("Persons with several birth dates") }
+    #}
+    ################################################################################################################################
+    
+    #Check if the subjects have overlap in the time intervals (within strata???), defined by end-start date.
+    ################################################################################################################################
+    
+    if(check_overlap){
+      
       if(print) print("Check if observation periods do not have overlap")
       test_overlap<-Dataset[!is.na(get(End_date))&!is.na(get(End_date))&get(End_date)>get(Start_date),][,.(get(Person_id), as.integer(get(Start_date)), as.integer(get(End_date)))]
       setkey(test_overlap,V1,V2,V3)
@@ -118,122 +135,128 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
       
       rm(test_overlap,test_overlap2,overlap_subjects)
       gc()
-  
-  }
-  ################################################################################################################################
-  
-    
-  #Select relevant data
-  ################################################################################################################################
-  intv <- as.IDate(c(Start_study_time, End_study_time))
-  Dataset <- Dataset[get(Start_date) %between% intv|get(End_date) %between% intv|(get(Start_date) < Start_study_time & get(End_date) > End_study_time)] 
-  
-  if(nrow(Dataset) == 0){
-    Dataset <- NULL
-    if(print) print("No subjects with any observation time within studyperiod. NULL is returned")
-  }else{
-  
-  Dataset[get(Start_date) < Start_study_time,eval(Start_date) := Start_study_time]
-  Dataset[get(End_date) > End_study_time,eval(End_date) := End_study_time]
-  
-  start <- Start_study_time
-  end <- End_study_time
-  Time_Increment <- as.IDate(seq.Date(start, end, Increment))
-  
-  if(length(Time_Increment) > 1){
-    Time_Increment_end <- as.IDate(seq.Date(Time_Increment[2], by = Increment, length = length(Time_Increment)))-1
-  }else{
-    Time_Increment_end <- end
-  }
-  
-  
-  
-  #Time_Increment_end <- as.IDate(seq.Date(Time_Increment[2], by = Increment, length = length(Time_Increment)))-1
-  ################################################################################################################################
-  
-  #Enlarge table by time increment. If agebands, then calculate tha ages at the start and at the end of every new created time interval
-  ################################################################################################################################
-  
-  
-  if(print) print(paste0("Transform input date to a dataset per ", Increment, ". This step increases the size of the file with respect to the choosen increment" ))
-  
-  Dummy <- as.data.table(cbind(Increment = Time_Increment,End = Time_Increment_end))
-  Dummy <- Dummy[, Increment := as.IDate(Increment)]
-  Dummy <- Dummy[, End := as.IDate(End)]
-  colnames(Dummy) <- c(Increment,"End")
-  
-  
-  setkeyv(Dataset, c(Start_date, End_date))
-  Dataset <- foverlaps(Dummy, Dataset, by.x=c(Increment, "End"), nomatch = 0L, type = "any")
-  
-  Dataset <- Dataset[get(Start_date) <= get(Increment) & get(End_date) >= get(Increment),eval(Start_date) := get(Increment)]
-  Dataset <-Dataset[get(End_date) >= End & get(Start_date) <= End, eval(End_date) := End][, End := NULL]
-  
-  rm(Dummy)
-  gc()
-  
-  ################################################################################################################################
-  
-  #Determine the ages at the beginning and end of all observation periods. Output is a starting point for calculation and splitting of
-  # age bands
-  ################################################################################################################################
-  if(!is.null(Age_bands)){
-    
-    if(print) print(paste0("Calculate ages at the start and end of every observation period by ", Increment))
-    
-    if (nrow(Dataset) > 0){
       
-      Dataset[, age_start := floor(time_length(interval(get(Birth_date), get(Start_date)), Unit_of_age)) ]
-      Dataset[, age_end := floor(time_length(interval(get(Birth_date), get(End_date)), Unit_of_age)) ]
-      
-    } else{
-      Dataset[,age_start := NA]
-      Dataset[,age_end := NA]
-    }   
-    
-  }
-  ################################################################################################################################
-  
-  #Calculate agebands in 2 steps ((1)split/recalculate start/end ages and (assign row to ageband) )
-  ################################################################################################################################
-  if(!is.null(Age_bands)){
-    if(print) print("Create agebands")
-    if(nrow(Dataset) > 0){
-    #### New code from version 13.6
-      
-      #Produce a dataset with Agebands and the start and end age of that ageband. This can be used to merge top all cases in the Dataset that overlap with the start and end age. 
-      Agebands_list <- list()
-      
-      for (k in 1:length(Age_bands)){
-        
-        if( k == 1) Agebands_list[[k]] <- paste0(Age_bands[k],"-",Age_bands[k+1])
-        if( k > 1 &k!= length(Age_bands)) Agebands_list[[k]] <- paste0(Age_bands[k]+1,"-",Age_bands[k+1])
-        if( k== length(Age_bands) & include_remaning_ages == T) Agebands_list[[k]] <- paste0(Age_bands[k]+1,"+")
-        
-      }
-      
-      Agebands_list <- as.data.table(do.call(rbind, Agebands_list))
-      colnames(Agebands_list)<- "Ageband"
-      
-      Agebands_list[,row := row.names(Agebands_list) ]
-      Agebands_list[,ST := as.numeric(gsub("[^[:digit:].]", "\\1",strsplit(as.character(Ageband),"-")[[1]][1])),by = row ]
-      Agebands_list[,EN := as.numeric(gsub("[^[:digit:].]", "\\1",strsplit(as.character(Ageband),"-")[[1]][2])),by = row ]
-      Agebands_list[is.na(EN),EN := 4000 ]
-      
-      #Merge the overlapping
-      setkeyv(Dataset, c("age_start","age_end"))
-      Dataset <- foverlaps(Agebands_list, Dataset, by.x = c("ST","EN"), nomatch = 0L, type = "any")
-      
-      # select the rows that doubled by the merge. In these, multiple agebands occur witing the obeservation period. So start and end dated need to be adapted
-      Dataset <- Dataset[, row := row.names(Dataset)]
-      Dataset <- Dataset[age_start < ST  ,eval(Start_date) := as.IDate(add_with_rollback(get(Birth_date), period(ST,units = Unit_of_age), roll_to_first = T, preserve_hms = T)), by = row]
-      Dataset <- Dataset[age_end > EN  ,eval(End_date) := as.IDate(add_with_rollback(get(Birth_date), period(EN + 1,units = Unit_of_age), roll_to_first = T, preserve_hms = T)) - 1, by = row]
-      Dataset <- Dataset[,':=' (age_start = NULL, age_end = NULL,ST = NULL, EN = NULL, row = NULL)]
-       
-      Age_band_coln<-"Ageband"
     }
-  } else Age_band_coln<-"Ageband"<-NULL
+    ################################################################################################################################
+    
+    
+    #Select relevant data
+    ################################################################################################################################
+    intv <- as.IDate(c(Start_study_time, End_study_time))
+    Dataset <- Dataset[get(Start_date) %between% intv|get(End_date) %between% intv|(get(Start_date) < Start_study_time & get(End_date) > End_study_time)] 
+    
+    if(nrow(Dataset) == 0){
+      Dataset <- NULL
+      if(print) print("No subjects with any observation time within studyperiod. NULL is returned")
+      return(Dataset)
+    }
+    
+    Dataset[get(Start_date) < Start_study_time,eval(Start_date) := Start_study_time]
+    Dataset[get(End_date) > End_study_time,eval(End_date) := End_study_time]
+    
+    start <- Start_study_time
+    end <- End_study_time
+    Time_Increment <- as.IDate(seq.Date(start, end, Increment))
+    
+    if(length(Time_Increment) > 1){
+      Time_Increment_end <- as.IDate(seq.Date(Time_Increment[2], by = Increment, length = length(Time_Increment)))-1
+    }else{
+      Time_Increment_end <- end
+    }
+    
+    
+    
+    #Time_Increment_end <- as.IDate(seq.Date(Time_Increment[2], by = Increment, length = length(Time_Increment)))-1
+    ################################################################################################################################
+    
+    #Enlarge table by time increment. If agebands, then calculate tha ages at the start and at the end of every new created time interval
+    ################################################################################################################################
+    
+    
+    if(print) print(paste0("Transform input date to a dataset per ", Increment, ". This step increases the size of the file with respect to the choosen increment" ))
+    
+    Dummy <- as.data.table(cbind(Increment = Time_Increment,End = Time_Increment_end))
+    Dummy <- Dummy[, Increment := as.IDate(Increment)]
+    Dummy <- Dummy[, End := as.IDate(End)]
+    colnames(Dummy) <- c(Increment,"End")
+    
+    
+    setkeyv(Dataset, c(Start_date, End_date))
+    Dataset <- foverlaps(Dummy, Dataset, by.x=c(Increment, "End"), nomatch = 0L, type = "any")
+    
+    Dataset <- Dataset[get(Start_date) <= get(Increment) & get(End_date) >= get(Increment),eval(Start_date) := get(Increment)]
+    Dataset <-Dataset[get(End_date) >= End & get(Start_date) <= End, eval(End_date) := End][, End := NULL]
+    
+    rm(Dummy)
+    gc()
+    
+    ################################################################################################################################
+    
+    #Determine the ages at the beginning and end of all observation periods. Output is a starting point for calculation and splitting of
+    # age bands
+    ################################################################################################################################
+    if(!is.null(Age_bands)){
+      
+      if(print) print(paste0("Calculate ages at the start and end of every observation period by ", Increment))
+      
+      if (nrow(Dataset) > 0){
+        
+        Dataset[, age_start := floor(time_length(interval(get(Birth_date), get(Start_date)), Unit_of_age)) ]
+        Dataset[, age_end := floor(time_length(interval(get(Birth_date), get(End_date)), Unit_of_age)) ]
+        
+      } else{
+        Dataset[,age_start := NA]
+        Dataset[,age_end := NA]
+      }   
+      
+    }
+    ################################################################################################################################
+    
+    #Calculate agebands in 2 steps ((1)split/recalculate start/end ages and (assign row to ageband) )
+    ################################################################################################################################
+    if(!is.null(Age_bands)){
+      if(print) print("Create agebands")
+      if(nrow(Dataset) > 0){
+        #### New code from version 13.6
+        
+        #Produce a dataset with Agebands and the start and end age of that ageband. This can be used to merge top all cases in the Dataset that overlap with the start and end age. 
+        Agebands_list <- list()
+        
+        for (k in 1:length(Age_bands)){
+          
+          if( k == 1) Agebands_list[[k]] <- paste0(Age_bands[k],"-",Age_bands[k+1])
+          if( k > 1 &k!= length(Age_bands)) Agebands_list[[k]] <- paste0(Age_bands[k]+1,"-",Age_bands[k+1])
+          if( k== length(Age_bands) & include_remaning_ages == T) Agebands_list[[k]] <- paste0(Age_bands[k]+1,"+")
+          
+        }
+        
+        Agebands_list <- as.data.table(do.call(rbind, Agebands_list))
+        colnames(Agebands_list)<- "Ageband"
+        
+        Agebands_list[,row := row.names(Agebands_list) ]
+        Agebands_list[,ST := as.numeric(gsub("[^[:digit:].]", "\\1",strsplit(as.character(Ageband),"-")[[1]][1])),by = row ]
+        Agebands_list[,EN := as.numeric(gsub("[^[:digit:].]", "\\1",strsplit(as.character(Ageband),"-")[[1]][2])),by = row ]
+        Agebands_list[is.na(EN),EN := 4000 ]
+        
+        #Merge the overlapping
+        setkeyv(Dataset, c("age_start","age_end"))
+        Dataset <- foverlaps(Agebands_list, Dataset, by.x = c("ST","EN"), nomatch = 0L, type = "any")
+        
+        # select the rows that doubled by the merge. In these, multiple agebands occur witing the obeservation period. So start and end dated need to be adapted
+        Dataset <- Dataset[, row := row.names(Dataset)]
+        Dataset <- Dataset[age_start < ST  ,eval(Start_date) := as.IDate(add_with_rollback(get(Birth_date), period(ST,units = Unit_of_age), roll_to_first = T, preserve_hms = T)), by = row]
+        Dataset <- Dataset[age_end > EN  ,eval(End_date) := as.IDate(add_with_rollback(get(Birth_date), period(EN + 1,units = Unit_of_age), roll_to_first = T, preserve_hms = T)) - 1, by = row]
+        Dataset <- Dataset[,':=' (age_start = NULL, age_end = NULL,ST = NULL, EN = NULL, row = NULL)]
+        }
+    }
+    
+    if (!missing(save_intermediate)) {
+      save(Dataset, file = save_intermediate)
+    } 
+    
+  }
   
+  if(!is.null(Age_bands)){Age_band_coln<-"Ageband"} else Age_band_coln<-"Ageband"<-NULL
   
   #NEW CODE V11 If recurrent events is true. This is a whole different approach compared to the situation where only the first
   # event is used. When joining multiple doubling will occur. I choose to do not do this and choose a method only allowing joins 
@@ -576,7 +599,6 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
     Dataset <- Dataset[, lapply(.SD, sum), .SDcols = PT_colls, by = by_colls]
     rm(PT_colls,by_colls)
 
-  }
   }
   return(Dataset)
   ################################################################################################################################
