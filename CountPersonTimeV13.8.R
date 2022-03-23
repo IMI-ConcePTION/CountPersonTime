@@ -165,33 +165,6 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
     }
     
     
-    
-    #Time_Increment_end <- as.IDate(seq.Date(Time_Increment[2], by = Increment, length = length(Time_Increment)))-1
-    ################################################################################################################################
-    
-    #Enlarge table by time increment. If agebands, then calculate tha ages at the start and at the end of every new created time interval
-    ################################################################################################################################
-    
-    
-    if(print) print(paste0("Transform input date to a dataset per ", Increment, ". This step increases the size of the file with respect to the choosen increment" ))
-    
-    Dummy <- as.data.table(cbind(Increment = Time_Increment,End = Time_Increment_end))
-    Dummy <- Dummy[, Increment := as.IDate(Increment)]
-    Dummy <- Dummy[, End := as.IDate(End)]
-    colnames(Dummy) <- c(Increment,"End")
-    
-    
-    setkeyv(Dataset, c(Start_date, End_date))
-    Dataset <- foverlaps(Dummy, Dataset, by.x=c(Increment, "End"), nomatch = 0L, type = "any")
-    
-    Dataset <- Dataset[get(Start_date) <= get(Increment) & get(End_date) >= get(Increment),eval(Start_date) := get(Increment)]
-    Dataset <-Dataset[get(End_date) >= End & get(Start_date) <= End, eval(End_date) := End][, End := NULL]
-    
-    rm(Dummy)
-    gc()
-    
-    ################################################################################################################################
-    
     #Determine the ages at the beginning and end of all observation periods. Output is a starting point for calculation and splitting of
     # age bands
     ################################################################################################################################
@@ -250,13 +223,40 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
         }
     }
     
-    if (!missing(save_intermediate)) {
-      save(Dataset, file = save_intermediate)
-    } 
     
-  }
   
   if(!is.null(Age_bands)){Age_band_coln<-"Ageband"} else Age_band_coln<-"Ageband"<-NULL
+  
+  
+  #Enlarge table by time increment. 
+  ################################################################################################################################
+  
+  
+  if(print) print(paste0("Transform input date to a dataset per ", Increment, ". This step increases the size of the file with respect to the choosen increment" ))
+  
+  Dummy <- as.data.table(cbind(Increment = Time_Increment,End = Time_Increment_end))
+  Dummy <- Dummy[, Increment := as.IDate(Increment)]
+  Dummy <- Dummy[, End := as.IDate(End)]
+  colnames(Dummy) <- c(Increment,"End")
+  
+  
+  setkeyv(Dataset, c(Start_date, End_date))
+  Dataset <- foverlaps(Dummy, Dataset, by.x=c(Increment, "End"), nomatch = 0L, type = "any")
+  
+  Dataset <- Dataset[get(Start_date) <= get(Increment) & get(End_date) >= get(Increment),eval(Start_date) := get(Increment)]
+  Dataset <-Dataset[get(End_date) >= End & get(Start_date) <= End, eval(End_date) := End][, End := NULL]
+  
+  rm(Dummy)
+  gc()
+  
+  ################################################################################################################################
+  
+  if (!missing(save_intermediate)) {
+    save(Dataset, file = save_intermediate)
+  } 
+  
+  }
+  
   
   #NEW CODE V11 If recurrent events is true. This is a whole different approach compared to the situation where only the first
   # event is used. When joining multiple doubling will occur. I choose to do not do this and choose a method only allowing joins 
