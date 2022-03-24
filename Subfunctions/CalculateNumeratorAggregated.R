@@ -1,8 +1,11 @@
 
 
 
+
+
 CalculateNumeratorAggregated <- function(
-                                          Dataset, 
+                                          Dataset,
+                                          Person_id,
                                           Start_date, 
                                           End_date, 
                                           Dataset_events, 
@@ -14,6 +17,7 @@ CalculateNumeratorAggregated <- function(
                                           Strata = NULL){
 
       Dataset <- copy(Dataset)
+      Dataset_events <- copy(Dataset_events)
       
       setnames(Dataset_events, c(eval(Person_id), eval(Name_event), eval(Date_event)), c("ID","EVNT", "DTEVNT"))
       
@@ -23,7 +27,7 @@ CalculateNumeratorAggregated <- function(
       Dataset_events <- copy(Dataset_events)[, dummy0 := DTEVNT]
       
       setkeyv(Dataset, c("ID", "ST", "EN"))
-      Events <- foverlaps(Dataset_events, Dataset, by.x = c("ID","DTEVNT","dummy0"), nomatch = 0L, type = "any")[, ":=" (ST =NULL, EN = NULL, Iteration = NULL)]
+      Events <- foverlaps(Dataset_events, Dataset, by.x = c("ID","DTEVNT","dummy0"), nomatch = 0L, type = "any")[, ":=" (ST =NULL, EN = NULL)]
       
       rm(Dataset, Dataset_events)
       gc()
