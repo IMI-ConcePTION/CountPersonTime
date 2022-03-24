@@ -29,7 +29,7 @@ Dataset_original <- readRDS("C:/Dataset_original.rds")
 Age_bands = c(0,17,44,64)
 Start_study_time = "20150101"
 End_study_time = "20191231"
-Increment = "year"
+Increment = "month"
 
 ###Preparing steps
 
@@ -39,7 +39,7 @@ End_study_time<-as.IDate(as.character(End_study_time),"%Y%m%d")
 
 
 #Remove all events within lag time/wash out period/censoring period if there are recurrent events
-Dataset_events <- CleanOutcomes(Dataset = Dataset_events, Person_id = "person_id", Rec_period = c(10,0), Outcomes = c("outcome1", "outcome2"), Name_event = "name_event", Date_event = "date_event")
+peakRAM(Dataset_events <- CleanOutcomes(Dataset = Dataset_events, Person_id = "person_id", Rec_period = c(10,0), Outcomes = c("outcome1", "outcome2"), Name_event = "name_event", Date_event = "date_event"))
 Dataset_events <- Dataset_events[, Iteration := NULL]
 
 #Create file with the age bands and the age interval belonging to that. This is used for joining with the aim to assign labels 
@@ -51,7 +51,7 @@ Dummy <- CreareTimeIntervals(Start_study_time = Start_study_time, End_study_time
 ###START CountNumeretorLean
 ##############
 
-TestFastNumerator <- CalculateNumeratorAggregated(
+peakRAM(TestFastNumerator <- CalculateNumeratorAggregated(
   
   Dataset = Dataset_original,
   Person_id = "person_id",
@@ -66,7 +66,7 @@ TestFastNumerator <- CalculateNumeratorAggregated(
   Strata = c("sex","city")
   
 )
-
+)
 
 #temp <- TestFastNumerator[, year1 := year(year)][, year := NULL][, year := as.character(year1)]
 #temp <- TestFastNumerator[, day := as.character(day)]
@@ -83,7 +83,7 @@ TestFastNumerator <- CalculateNumeratorAggregated(
 
 #load("C:/test.Rdata")
 
-test <- CalculateSubstractionDenominator(
+peakRAM(test <- CalculateSubstractionDenominator(
   
   
   Dataset = Dataset,
@@ -93,13 +93,13 @@ test <- CalculateSubstractionDenominator(
   Person_id = "person_id",
   Name_event = "name_event",
   Date_event = "date_event",
-  Outcomes_rec = c("outcome1", "outcome2","outcome3"),
-  Rec_period = c(10, 10,10),
+  Outcomes_rec = c("outcome1", "outcome2"),
+  Rec_period = c(10, 0),
   Aggregate = T,
-  Strata = c("sex","city", "Ageband", "year"),
+  Strata = c("sex","city", "Ageband", "month"),
   Include_count = T
   
-)
+))
 
 
 ##############
