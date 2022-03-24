@@ -1,57 +1,16 @@
 
-rm(list = ls(all=TRUE))
+#rm(list = ls(all=TRUE))
 
-CleanOutcomes <- function(Dataset = NULL, Person_id, Rec_period = NULL, Outcomes = NULL, Name_event = NULL, Date_event = NULL){
-  
-  if(length(Outcomes) != length(Rec_period)) stop("Specifiy the same number of Rec_periods as Outcomes")
-  
-  Dataset  <- copy(Dataset)[get(Name_event) %in% Outcomes]
-  tmp <- copy(Dataset[0])
-  
-  for (i in 1:length(Outcomes)){
-    
-    
-    print(paste("Remove ",Outcomes[i], "outcomes (conditions or vaccines) within a the Rec_period distance of ",Rec_period[i]," days"))
-    Dataset_temp  <- copy(Dataset)[get(Name_event) == Outcomes[i],]
-    
-    it=1
-    while(nrow(Dataset_temp) > 0){ 
-      
-      setorderv(Dataset_temp,c(Person_id,Name_event,Date_event))
-      Dataset_temp <- Dataset_temp[,D := shift(get(Date_event)),by = c(Person_id,Name_event) ]
-      Dataset_temp <- Dataset_temp[,dif := get(Date_event) - D]
-      Dataset_temp <- Dataset_temp[is.na(dif), dif := 0 ][,dif := as.numeric(dif)]
-      Dataset_temp <- Dataset_temp[,cumdif := cumsum(dif),by = c(Person_id,Name_event)]
-      
-      Dataset_temp2 <- Dataset_temp[ cumdif <= Rec_period[i],]
-      setorderv(Dataset_temp2,c(Person_id,Name_event,Date_event))
-      Dataset_temp2 <- Dataset_temp2[,.SD[1],by = c(Person_id,Name_event)][,Iteration := it]
-      
-      tmp <- rbindlist(list(tmp, Dataset_temp2),fill=T)
-      rm(Dataset_temp2)
-      
-      Dataset_temp <- Dataset_temp[cumdif > Rec_period[i],]
-      
-      lapply(c("dif","cumdif","D"), function(x){Dataset_temp <-Dataset_temp[,eval(x) := NULL]})
-      print(paste0("Cycle ",it))
-      it=it+1
-      gc()
-    }
-    
-    
-    
-    rm(Dataset_temp, it)
-    gc()
-    
-    
-  }  
-  lapply(c("dif","cumdif","D"), function(x){tmp <- tmp[,eval(x) := NULL]})
-  setorderv(tmp,c(Person_id,Name_event,Date_event))
-  return(tmp)
-  
-} 
+###load subfunctions. These functions represent the relevant processes that are taken. It are copies of codes used within the the function.
+
+#source("C:/CreateBands.R")
+source("C:/CleanOutcomes.R")
+source("C:/CreateAgebandIntervals.R")
+source("C:/CreareTimeIntervals.R")
+source("C:/CalculateNumeratorAggregated.R") #This is new created from code in level3 visits.It calulates numerator without stretching out the file first 
 
 
+###
 
 if (!require("data.table")) install.packages("data.table")
 
@@ -60,25 +19,71 @@ if (!require("data.table")) install.packages("data.table")
 ####
 load("C:/test.Rdata")
 #Dataset <- readRDS("C:/Dataset.rds")
-Dataset_events <- readRDS( "C:/Dataset_events.rds")
-Outcomes_rec <- c("outcome1","outcome2", "outcome3")
-Rec_period <- c(10,10,10) 
+Dataset_events <- readRDS( "C:/Events_original.rds")
+Outcomes_rec <- c("outcome1","outcome2")
+Rec_period <- c(10,5) 
 Start_date = "start_date"
 End_date = "end_date"
 Strata = c("sex","city", "Ageband", "year")
 Name_event = "name_event"
 Date_event = "date_event"
-Increment = "year"
+Increment = INC
 Aggregate = T
 Person_id = "person_id"
+Dataset_original <- readRDS("C:/Dataset_original.rds")
+Age_bands = c(0,17,44,64)
+Birth_date = "date_birth"
+Start_study_time = "20150101"
+End_study_time = "20191231"
 
 
+###Preparing steps
 
+#Set dates to date format
+Start_study_time<-as.IDate(as.character(Start_study_time),"%Y%m%d")
+End_study_time<-as.IDate(as.character(End_study_time),"%Y%m%d")
+
+
+#Remove all events within lag time/wash out period/censoring period if there are recurrent events
 Dataset_events <- CleanOutcomes(Dataset = Dataset_events, Person_id = "person_id", Rec_period = Rec_period, Outcomes = Outcomes_rec, Name_event = Name_event, Date_event = Date_event)
 
+#Create file with the age bands and the age interval belonging to that. This is used for joining with the aim to assign labels 
+Agebands <- CreateAgebandIntervals(Age_bands, include = T)
 
-#START
-############
+#Create a file with the relevant time intervals like with age bands.This is used for joining with the aim to assign labels 
+Dummy <- CreareTimeIntervals(Start_study_time = Start_study_time, End_study_time = End_study_time, Increment = Increment)
+
+###START CountNumeretorLean
+##############
+
+TestFastNumerator <- CalculateNumeratorAggregated(
+  
+  Dataset = Dataset, 
+  Start_date = Start_date, 
+  End_date = End_date, 
+  Dataset_events = Dataset_events, 
+  Agebands.file = Agebands, 
+  Times.file = Dummy, 
+  Name_event ="name_event", 
+  Date_event = "date_event", 
+  Birth_date = "date_birth", 
+  Strata = c("sex","city")
+  
+)
+
+
+#temp <- TestFastNumerator[, year1 := year(year)][, year := NULL][, year := as.character(year1)]
+#temp <- TestFastNumerator[, day := as.character(day)]
+#Output_file1 <- Output_file1[, day := as.character(day)]
+#check <- merge(temp, Output_file1, by = Strata)[, x := fifelse(outcome1 == outcome1_b & outcome2 == outcome2_b, T, F) ]
+
+
+
+#################
+
+
+#START SUBRACT
+################
 
 
 #Standardize names because data.table gives problems in some occasions when working with varaibles as inputs
