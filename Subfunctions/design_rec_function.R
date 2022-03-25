@@ -14,7 +14,7 @@ source("CreateAgebandIntervals.R")
 source("CreareTimeIntervals.R")
 source("CalculateSubtractionDenominator.R")  
 source("CalculateNumeratorAggregated.R") #This is new created from code in level3 visits.It calulates numerator without stretching out the file first
-
+source("CheckAndPrepareDates.R")
 ###
 
 if (!require("data.table")) install.packages("data.table")
@@ -46,7 +46,7 @@ Dataset_events <- Dataset_events[, Iteration := NULL]
 Agebands <- CreateAgebandIntervals(Age_bands, include = T)
 
 #Create a file with the relevant time intervals like with age bands.This is used for joining with the aim to assign labels 
-Dummy <- CreareTimeIntervals(Start_study_time = Start_study_time, End_study_time = End_study_time, Increment = Increment)
+Dummy <- CreateTimeIntervals(Start_study_time = Start_study_time, End_study_time = End_study_time, Increment = Increment)
 
 ###START CountNumeretorLean
 ##############

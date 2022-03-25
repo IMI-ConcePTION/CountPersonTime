@@ -1,6 +1,6 @@
 
 
-CreareTimeIntervals <- function(Start_study_time, End_study_time, Increment){
+CreateTimeIntervals <- function(Start_study_time, End_study_time, Increment){
 
         start <- Start_study_time
         end <- End_study_time
