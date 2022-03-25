@@ -1,17 +1,5 @@
 
 
-# Dataset = Dataset
-# Start_date = "start_date"
-# End_date = "end_date"
-# Dataset_events = Dataset_events
-# Person_id = "person_id"
-# Name_event = "name_event"
-# Date_event = "date_event"
-# Outcomes_rec = c("outcome1", "outcome2","outcome3")
-# Rec_period = c(10, 0,10)
-# Aggregate = T
-# Strata = c("sex","city", "Ageband", "year")
-# Include_count = T
 
 CalculateSubstractionDenominator <- function(
   
@@ -26,7 +14,8 @@ CalculateSubstractionDenominator <- function(
   Rec_period, 
   Aggregate = F,
   Strata = NULL,
-  Include_count = T
+  Include_count = T,
+  print = F
   
   
   
@@ -59,20 +48,22 @@ gc()
 
 if(nrow(Dataset_events_rec1) > 0){
   
-  print("Calculate start and end dates for the censoring periods")
+  if(print) print("Calculate start and end dates for the censoring periods")
   
+  if(length(Rec_period1) > 0){
   for(i in 1:length(Rec_period1)){
     
-    print(paste("Set censoring start and end dates for outcome ",Outcomes_rec1[i], " with a duration of ",Rec_period1[i]," days"))
+    if(print) print(paste("Set censoring start and end dates for outcome ",Outcomes_rec1[i], " with a duration of ",Rec_period1[i]," days"))
     #Dataset_events_rec1 <- Dataset_events_rec1[dif != 0 & get(Name_event) == Outcomes_rec1[i] & dif < Rec_period1[i], Delete := T ][is.na(Delete),]
     Dataset_events_rec1 <- Dataset_events_rec1[EVNT == Outcomes_rec1[i], ":=" (RecSTDT = DTEVNT, RecENDT = DTEVNT + Rec_period1[i])]  
     gc()
     
+    }
   }
   
   if(Include_count) Dataset_events_rec1 <- Dataset_events_rec1[EVNT %in% Outcomes_rec0, ":=" (RecSTDT = DTEVNT, RecENDT = DTEVNT), ]
   
-  print("Calculate days to subtract from persontime for recurrent events")
+  if(print) print("Calculate days to subtract from persontime for recurrent events")
   
   setkeyv(Dataset, c("ID", "ST", "EN"))
   Dataset_events_rec1 <- foverlaps(Dataset_events_rec1, Dataset, by.x = c("ID","RecSTDT","RecENDT"), nomatch = 0L, type = "any")
@@ -135,7 +126,7 @@ if(nrow(Dataset_events_rec1) > 0){
     }
   }
   
-  
+setnames(Dataset, c("ID", "ST", "EN"), c(eval(Person_id), eval(Start_date), eval(End_date)))  
   
 }else{Dataset <- NULL}
 

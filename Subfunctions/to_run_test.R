@@ -9,9 +9,9 @@ if (!require("data.table")) install.packages("data.table")
 
 thisdir <- setwd(dirname(rstudioapi::getSourceEditorContext()$path))
 #r_file<-"CountPersonTimeV13.9.R"
-r_file<-"CountPersonTimeV13.8.R"
+#r_file<-"CountPersonTimeV13.8.R"
 
-source(paste0(thisdir,"/",r_file))
+
 
 EVENTS1 <- readRDS(paste0(thisdir,"/EVENTS1.rds"))
 PERIODS1 <- readRDS(paste0(thisdir,"/PERIODS1.rds"))
@@ -22,8 +22,16 @@ source("CleanOutcomes.R")
 source("CreateAgebandIntervals.R")
 source("CreateTimeIntervals.R")
 source("CheckAndPrepareDates.R")
+source("CalculateSubtractionDenominator.R")
 
-peakRAM(Output_file1<-CountPersonTime(
+test <- c("CountPersonTimeV13.8.R", "CountPersonTimeV13.9.R")
+
+for(i in 1:length(test)){
+
+source(paste0(thisdir,"/",test[i]))  
+
+    
+print(peakRAM(CountPersonTime(
   
   Dataset_events = EVENTS1, 
   Dataset = PERIODS1,
@@ -38,13 +46,29 @@ peakRAM(Output_file1<-CountPersonTime(
   Date_event = "date_event",
   Age_bands = c(0,17,44,64),
   Increment = INC,
-  Outcomes_rec =c("outcome1","outcome2"),
+  Outcomes_rec = c("outcome1","outcome2"),
   Unit_of_age = "year",
   include_remaning_ages = T,
   Aggregate = F,
-  Rec_period = c(10,0),
-  save_intermediate = "C:/test.Rdata",
-  #load_intermediate = T,
-  check_overlap = F
+  Rec_period = c(10,10),
+  save_intermediate = paste0("C:/TEST",i,".Rdata"),
+  load_intermediate = F,
+  check_overlap = F,
+  print = F
+)
   
 ))
+
+
+}
+
+
+load(paste0("C:/TEST",1,".Rdata"))
+test1 <- Dataset
+load(paste0("C:/TEST",2,".Rdata"))
+test2 <- Dataset
+
+rm(Dataset)
+
+#test1 == test2
+

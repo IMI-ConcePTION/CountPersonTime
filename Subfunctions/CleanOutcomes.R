@@ -1,4 +1,4 @@
-CleanOutcomes <- function(Dataset = NULL, Person_id, Rec_period = NULL, Outcomes = NULL, Name_event = NULL, Date_event = NULL){
+CleanOutcomes <- function(Dataset = NULL, Person_id, Rec_period = NULL, Outcomes = NULL, Name_event = NULL, Date_event = NULL, print = F){
   
   if(length(Outcomes) != length(Rec_period)) stop("Specifiy the same number of Rec_periods as Outcomes")
   
@@ -8,7 +8,7 @@ CleanOutcomes <- function(Dataset = NULL, Person_id, Rec_period = NULL, Outcomes
   for (i in 1:length(Outcomes)){
     
     
-    print(paste("Remove ",Outcomes[i], "outcomes (conditions or vaccines) within a the Rec_period distance of ",Rec_period[i]," days"))
+    if(print) print(paste("Remove ",Outcomes[i], "outcomes (conditions or vaccines) within a the Rec_period distance of ",Rec_period[i]," days"))
     Dataset_temp  <- copy(Dataset)[get(Name_event) == Outcomes[i],]
     
     it=1
@@ -30,7 +30,7 @@ CleanOutcomes <- function(Dataset = NULL, Person_id, Rec_period = NULL, Outcomes
       Dataset_temp <- Dataset_temp[cumdif > Rec_period[i],]
       
       lapply(c("dif","cumdif","D"), function(x){Dataset_temp <-Dataset_temp[,eval(x) := NULL]})
-      print(paste0("Cycle ",it))
+      if(print) print(paste0("Cycle ",it))
       it=it+1
       gc()
     }

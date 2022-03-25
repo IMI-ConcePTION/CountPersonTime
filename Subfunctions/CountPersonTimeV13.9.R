@@ -45,20 +45,8 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
     End_study_time <- as.IDate(as.character(End_study_time),"%Y%m%d")
     ################################################################################################################################
     
-    CheckAndPrepareDates(
-      Dataset = Dataset, 
-      Person_id = Person_id, 
-      Start_study = Start_study_time, 
-      End_study = End_study_time, 
-      Start_date = Start_date,
-      End_date = End_date, 
-      Birth_date = Birth_date, 
-      Age_bands = Age_bands,
-      Increment = Increment, 
-      print = print, 
-      check_overlap = check_overlap
-      
-      
+    CheckAndPrepareDates(Dataset = Dataset, Person_id = Person_id, Start_study = Start_study_time, End_study = End_study_time, Start_date = Start_date, End_date = End_date, 
+                          Birth_date = Birth_date, Age_bands = Age_bands, Increment = Increment, print = print, check_overlap = check_overlap
     )
     gc()
     
@@ -164,11 +152,115 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
   if(Increment=="month"){Dataset[,eval(Increment) := substr(get(Increment),1,7)]}
   if(Increment=="year"){Dataset[,eval(Increment) := substr(get(Increment),1,4)]}
   
-  return(Dataset)
+  
   
   if (!missing(save_intermediate)) {
     save(Dataset, file = save_intermediate)
   } 
+  
+  
+  #Recurrent events
+  ####
+  
+  #Start with situation where the results should not be aggregated.
+  
+  if(Aggregate == F & !is.null(Outcomes_rec)){
+    
+    Dataset_events <- CleanOutcomes(Dataset = readRDS(tmpname), Person_id = "person_id", Rec_period = Rec_period, Outcomes = Outcomes_rec, Name_event = "name_event", Date_event = "date_event")
+
+    
+    if(print) print("Calculate recurrent events not aggregated")
+    
+    if(!is.null(Age_bands)) Str = c(Strata, Increment, "Ageband")
+    if(is.null(Age_bands)) Str = c(Strata, Increment)
+    
+    Dataset <- CalculateSubstractionDenominator(
+      Dataset = Dataset,
+      Start_date = Start_date,
+      End_date = End_date,
+      Dataset_events = Dataset_events,
+      Person_id = Person_id,
+      Name_event = Name_event,
+      Date_event = Date_event,
+      Outcomes_rec = Outcomes_rec,
+      Rec_period = Rec_period,
+      Aggregate = F,
+      Strata = Str,
+      Include_count = T,
+      print = print
+      
+    )
+    
+    rm(Str, Dataset_events)
+    gc()
+    
+    #temp <- copy(Dataset)
+    #Dataset <- copy(temp)
+    
+    Dataset[is.na(Dataset), ] <- 0
+    #colls <- colnames(Dataset)[grepl(pattern = paste0(paste0(Outcomes_rec,"_b"), collapse = "|"), colnames(Dataset))]
+    
+    colls <- Outcomes_rec[Rec_period != 0]
+    
+    lapply(colls, function(x)
+      
+      Dataset[, eval(paste0("Persontime_", x)) := 
+                
+                fifelse(!is.na(get(paste0("SUBTRCUM_",x))), 
+                        get(End_date) - get(Start_date) + 1 - get(paste0("SUBTRCUM_",x)), 
+                        Persontime)
+                ][, eval(paste0("SUBTRCUM_",x)) := NULL]
+      )
+    
+    rm(colls)
+    
+    lapply(Outcomes_rec[Rec_period == 0], function(x) Dataset[, eval(paste0("Persontime_", x)) := Persontime])
+  }
+  
+  
+  ####
+  
+  
+  
+  
+  ####
+  
+  Outcomes <- c(Outcomes_nrec, Outcomes_rec)
+  
+  if(length(Outcomes) > 0){
+    
+    
+    colls <- colnames(Dataset)[grepl(pattern = paste0(paste0(Outcomes_rec,"_b"), collapse = "|"), colnames(Dataset))]
+    
+    
+    B_MISSING <- Outcomes[!paste0(Outcomes,"_b") %in% unique(colnames(Dataset))]
+    if(length(B_MISSING) > 0) lapply(paste0(B_MISSING,"_b"), function(x){Dataset <- Dataset[,eval(x) := 0]})
+    
+    P_MISSING <- Outcomes[!paste0("Persontime_",Outcomes) %in% unique(colnames(Dataset))]
+    if(length(P_MISSING) > 0) lapply(paste0("Persontime_",Outcomes), function(x){Dataset <- Dataset[,eval(x) := 0]})
+    
+    rm(P_MISSING, B_MISSING)
+    
+    
+  }
+  
+  rm(Outcomes)
+  
+  if(is.null(Age_bands)) sort_order <- c(Person_id, Start_date, Strata)else{
+    sort_order <- c(Person_id, Start_date, "Ageband", Strata)
+  }
+  
+  setorderv(Dataset, sort_order)
+  rm(sort_order)
+  
+  return(Dataset)
+  
+  
+  
+  
+  
+  
+  
   
   }
   
