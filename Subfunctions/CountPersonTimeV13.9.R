@@ -81,6 +81,9 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
     Dataset[get(Start_date) < Start_study_time,eval(Start_date) := Start_study_time]
     Dataset[get(End_date) > End_study_time,eval(End_date) := End_study_time]
     
+    
+    tmpname2 <- tempfile(pattern = "periods", tmpdir = tempdir(), fileext = ".rds")
+    saveRDS(Dataset, tmpname2)
   
     #Determine the ages at the beginning and end of all observation periods. Output is a starting point for calculation and splitting of
     # age bands
@@ -152,17 +155,69 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
   if(Increment=="month"){Dataset[,eval(Increment) := substr(get(Increment),1,7)]}
   if(Increment=="year"){Dataset[,eval(Increment) := substr(get(Increment),1,4)]}
   
-  
-  
   if (!missing(save_intermediate)) {
     save(Dataset, file = save_intermediate)
   } 
   
+  #add parameters for rest of script
+  ###
+  if(is.null(Age_bands)){
+    by_colls <- c(Strata, Increment)
+    sort_order <- c(Person_id, Start_date, Strata)}else{
+    
+    by_colls <- c(Strata, Increment, "Ageband")  
+    sort_order <- c(Person_id, Start_date, "Ageband", Strata)
+    
+    if(Aggregate) sort_order <- by_colls
+    
+  }
+  
+  ###
   
   #Recurrent events
   ####
   
-  #Start with situation where the results should not be aggregated.
+  #Situation where results are be aggregated and all rec_periods are 0 
+  ####
+  
+  if(Aggregate == T & (sum(Rec_period == 0) == length(Rec_period))){
+  
+    if(print)print("Calculate aggregated resuts for recurrent events if only rec_periods of 0")   
+    
+    Dataset <- Dataset[, lapply(.SD, sum), .SDcols = "Persontime", by = by_colls]
+    lapply(by_colls, function(x) Dataset[, eval(x) := as.character(get(x))])
+    
+    
+      Events <- CalculateNumeratorAggregated(
+        
+            Dataset = readRDS(tmpname2)[, c(Person_id, Start_date, End_date, Birth_date, Strata), with = F],
+            Person_id = Person_id,
+            Start_date = Start_date, 
+            End_date = End_date, 
+            Dataset_events = readRDS(tmpname), 
+            Agebands.file = Agebands_list, 
+            Times.file = Dummy, 
+            Name_event =Name_event, 
+            Date_event = Date_event, 
+            Birth_date = Birth_date, 
+            Strata = by_colls
+        
+      )
+      
+      Dataset <- merge(x = Dataset, y = Events, by = by_colls, all.x = T )   
+      Dataset[is.na(Dataset), ] <- 0
+      lapply(Outcomes_rec[Rec_period == 0], function(x) Dataset[, eval(paste0("Persontime_", x)) := Persontime])
+      
+  }
+  
+  
+  ####
+  
+  
+  
+  
+  
+  ###Situation where the results should not be aggregated.
   
   if(Aggregate == F & !is.null(Outcomes_rec)){
     
@@ -171,8 +226,8 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
     
     if(print) print("Calculate recurrent events not aggregated")
     
-    if(!is.null(Age_bands)) Str = c(Strata, Increment, "Ageband")
-    if(is.null(Age_bands)) Str = c(Strata, Increment)
+    #if(!is.null(Age_bands)) Str = c(Strata, Increment, "Ageband")
+    #if(is.null(Age_bands)) Str = c(Strata, Increment)
     
     Dataset <- CalculateSubstractionDenominator(
       Dataset = Dataset,
@@ -185,13 +240,13 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
       Outcomes_rec = Outcomes_rec,
       Rec_period = Rec_period,
       Aggregate = F,
-      Strata = Str,
+      Strata = by_colls,
       Include_count = T,
       print = print
       
     )
     
-    rm(Str, Dataset_events)
+    rm(Dataset_events)
     gc()
     
     #temp <- copy(Dataset)
@@ -217,14 +272,7 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
     lapply(Outcomes_rec[Rec_period == 0], function(x) Dataset[, eval(paste0("Persontime_", x)) := Persontime])
   }
   
-  
-  ####
-  
-  
-  
-  
-  ####
-  
+
   Outcomes <- c(Outcomes_nrec, Outcomes_rec)
   
   if(length(Outcomes) > 0){
@@ -246,10 +294,7 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
   
   rm(Outcomes)
   
-  if(is.null(Age_bands)) sort_order <- c(Person_id, Start_date, Strata)else{
-    sort_order <- c(Person_id, Start_date, "Ageband", Strata)
-  }
-  
+
   setorderv(Dataset, sort_order)
   rm(sort_order)
   

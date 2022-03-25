@@ -2,7 +2,6 @@
 
 
 
-
 CalculateNumeratorAggregated <- function(
                                           Dataset,
                                           Person_id,
@@ -15,7 +14,9 @@ CalculateNumeratorAggregated <- function(
                                           Date_event, 
                                           Birth_date = NULL, 
                                           Strata = NULL){
-
+      
+      Increment <- colnames(Times.file)[1]
+      
       Dataset <- copy(Dataset)
       Dataset_events <- copy(Dataset_events)
       
@@ -48,10 +49,17 @@ CalculateNumeratorAggregated <- function(
       by <- Strata
       
       if(!is.null(Agebands.file)) by <- c(by, "Ageband")
-      if(!is.null(Times.file)) by <- c(by, colnames(Times.file)[1])
+      if(!is.null(Times.file)) by <- unique(c(by, colnames(Times.file)[1]))
       
       if(length(by) == 0) stop("No by variables")
-      Events <- data.table::dcast(Events, formula(paste0(paste(by, collapse = " + "), " ~  EVNT")) , value.var = "var", fun.aggregate = sum)
+      Events <- data.table::dcast(Events[, EVNT := paste0(EVNT,"_b")], formula(paste0(paste(by, collapse = " + "), " ~  EVNT")) , value.var = "var", fun.aggregate = sum)
+      
+      
+      lapply(by, function(x) Events[, eval(x) := as.character(get(x))])
+      
+      if(Increment=="month"){Events[,eval(Increment) := substr(get(Increment),1,7)]}
+      if(Increment=="year"){Events[,eval(Increment) := substr(get(Increment),1,4)]}
+      
       
       return(Events)
 }

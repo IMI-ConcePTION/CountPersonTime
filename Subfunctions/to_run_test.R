@@ -23,6 +23,7 @@ source("CreateAgebandIntervals.R")
 source("CreateTimeIntervals.R")
 source("CheckAndPrepareDates.R")
 source("CalculateSubtractionDenominator.R")
+source("CalculateNumeratorAggregated.R")
 
 test <- c("CountPersonTimeV13.8.R", "CountPersonTimeV13.9.R")
 
@@ -50,7 +51,7 @@ print(peakRAM(CountPersonTime(
   Unit_of_age = "year",
   include_remaning_ages = T,
   Aggregate = F,
-  Rec_period = c(10,10),
+  Rec_period = c(0, 0),
   save_intermediate = paste0("C:/TEST",i,".Rdata"),
   load_intermediate = F,
   check_overlap = F,
