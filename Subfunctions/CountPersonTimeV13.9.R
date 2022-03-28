@@ -183,6 +183,16 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
   
   }
   
+  
+  
+  if((sum(Rec_period == 0) != length(Rec_period)) & Aggregate & exists("tmpname")){
+    
+    tmpname3 <- tempfile(pattern = "persontime", tmpdir = tempdir(), fileext = ".rds")
+    saveRDS(Dataset[, lapply(.SD, sum), .SDcols = "Persontime", by = by_colls], tmpname3)
+    
+    
+  }
+  
   ###
   
   #Recurrent events
@@ -263,7 +273,7 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
     
     colls <- Outcomes_rec[Rec_period != 0]
     
-    if(Aggregate){
+    if(!Aggregate){
     lapply(colls, function(x)
       
       Dataset[, eval(paste0("Persontime_", x)) := 
@@ -274,8 +284,12 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
                 ][, eval(paste0("SUBTRCUM_",x)) := NULL]
       )
     }else{
+      
+      Dataset <- merge(Dataset, readRDS(tmpname3), by = by_colls)
+      
       lapply(colls, function(x)
         
+    
         Dataset[, eval(paste0("Persontime_", x)) := 
                   
                   fifelse(!is.na(get(paste0("SUBTRCUM_",x))), 
