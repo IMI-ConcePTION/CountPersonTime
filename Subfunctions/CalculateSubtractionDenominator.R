@@ -1,6 +1,7 @@
 
 
 
+
 CalculateSubstractionDenominator <- function(
   
   Dataset,
@@ -22,6 +23,8 @@ CalculateSubstractionDenominator <- function(
   
 ){
 
+if(length(Outcomes_rec) != length(Rec_period)) stop("Outcomes_rec and Rec_period are not of the same length")
+  
 Dataset <- copy(Dataset)
 Dataset_events <- copy(Dataset_events)
 
@@ -126,7 +129,7 @@ if(nrow(Dataset_events_rec1) > 0){
     }
   }
   
-setnames(Dataset, c("ID", "ST", "EN"), c(eval(Person_id), eval(Start_date), eval(End_date)))  
+if(!Aggregate)setnames(Dataset, c("ID", "ST", "EN"), c(eval(Person_id), eval(Start_date), eval(End_date)))  
   
 }else{Dataset <- NULL}
 

@@ -21,8 +21,10 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
   library(lubridate)
   ################################################################################################################################
   
-  
+  if(!is.null(Dataset_events) & length(c(Outcomes_nrec, Outcomes_rec)) == 0) stop("No events specified in Outcomes_rec or Outcomes_nrec")
+  if(is.null(Dataset_events) & length(c(Outcomes_nrec, Outcomes_rec)) > 0) stop("No Dataset_events specified while Outcomes_rec or Outcomes_nrec are specified")
   if(any(Outcomes_rec %in% Outcomes_nrec)){stop("Overlapping event names for Outcomes_rec and Outcomes_nrec")}
+  if(length(Outcomes_rec) != length(Rec_period)) stop("Outcomes_rec and Rec_period are not of the same length")
   
   if (!is.logical(load_intermediate)) {stop("Parameter 'load_intermediate' accepts only logical constants")}
   if (!missing(save_intermediate)) {
@@ -125,7 +127,7 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
         Dataset <- Dataset[age_end > EN  ,eval(End_date) := as.IDate(add_with_rollback(get(Birth_date), period(EN + 1,units = Unit_of_age), roll_to_first = T, preserve_hms = T)) - 1, by = row]
         Dataset <- Dataset[,':=' (age_start = NULL, age_end = NULL,ST = NULL, EN = NULL, row = NULL)]
         }
-    }
+    }else{Agebands_list = NULL}
   
   #Enlarge table by time increment. 
   ################################################################################################################################
@@ -162,14 +164,23 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
   #add parameters for rest of script
   ###
   if(is.null(Age_bands)){
+    
     by_colls <- c(Strata, Increment)
     sort_order <- c(Person_id, Start_date, Strata)}else{
     
     by_colls <- c(Strata, Increment, "Ageband")  
     sort_order <- c(Person_id, Start_date, "Ageband", Strata)
     
-    if(Aggregate) sort_order <- by_colls
     
+    
+    }
+  
+  if(Aggregate) sort_order <- by_colls
+  
+  if(!exists("tmpname") & Aggregate){
+    
+    Dataset <- Dataset[, lapply(.SD, sum), .SDcols = "Persontime", by = by_colls]
+  
   }
   
   ###
@@ -180,7 +191,7 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
   #Situation where results are be aggregated and all rec_periods are 0 
   ####
   
-  if(Aggregate == T & (sum(Rec_period == 0) == length(Rec_period))){
+  if(Aggregate == T & exists("tmpname") & (sum(Rec_period == 0) == length(Rec_period))){
   
     if(print)print("Calculate aggregated resuts for recurrent events if only rec_periods of 0")   
     
@@ -197,7 +208,7 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
             Dataset_events = readRDS(tmpname), 
             Agebands.file = Agebands_list, 
             Times.file = Dummy, 
-            Name_event =Name_event, 
+            Name_event = Name_event, 
             Date_event = Date_event, 
             Birth_date = Birth_date, 
             Strata = by_colls
@@ -219,15 +230,13 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
   
   ###Situation where the results should not be aggregated.
   
-  if(Aggregate == F & !is.null(Outcomes_rec)){
+  if(exists("tmpname") & !is.null(Outcomes_rec) & (sum(Rec_period == 0) != length(Rec_period))){
     
     Dataset_events <- CleanOutcomes(Dataset = readRDS(tmpname), Person_id = "person_id", Rec_period = Rec_period, Outcomes = Outcomes_rec, Name_event = "name_event", Date_event = "date_event")
 
     
     if(print) print("Calculate recurrent events not aggregated")
-    
-    #if(!is.null(Age_bands)) Str = c(Strata, Increment, "Ageband")
-    #if(is.null(Age_bands)) Str = c(Strata, Increment)
+  
     
     Dataset <- CalculateSubstractionDenominator(
       Dataset = Dataset,
@@ -239,7 +248,7 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
       Date_event = Date_event,
       Outcomes_rec = Outcomes_rec,
       Rec_period = Rec_period,
-      Aggregate = F,
+      Aggregate = Aggregate,
       Strata = by_colls,
       Include_count = T,
       print = print
@@ -252,11 +261,9 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
     #temp <- copy(Dataset)
     #Dataset <- copy(temp)
     
-    Dataset[is.na(Dataset), ] <- 0
-    #colls <- colnames(Dataset)[grepl(pattern = paste0(paste0(Outcomes_rec,"_b"), collapse = "|"), colnames(Dataset))]
-    
     colls <- Outcomes_rec[Rec_period != 0]
     
+    if(Aggregate){
     lapply(colls, function(x)
       
       Dataset[, eval(paste0("Persontime_", x)) := 
@@ -266,16 +273,30 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
                         Persontime)
                 ][, eval(paste0("SUBTRCUM_",x)) := NULL]
       )
-    
+    }else{
+      lapply(colls, function(x)
+        
+        Dataset[, eval(paste0("Persontime_", x)) := 
+                  
+                  fifelse(!is.na(get(paste0("SUBTRCUM_",x))), 
+                          Persontime - get(paste0("SUBTRCUM_",x)), 
+                          Persontime)
+        ][, eval(paste0("SUBTRCUM_",x)) := NULL]
+      )
+      
+      
+      }
     rm(colls)
+    
     
     lapply(Outcomes_rec[Rec_period == 0], function(x) Dataset[, eval(paste0("Persontime_", x)) := Persontime])
   }
   
+  Dataset[is.na(Dataset), ] <- 0
 
   Outcomes <- c(Outcomes_nrec, Outcomes_rec)
   
-  if(length(Outcomes) > 0){
+  if(length(Outcomes) > 0 & exists("tmpname")){
     
     
     colls <- colnames(Dataset)[grepl(pattern = paste0(paste0(Outcomes_rec,"_b"), collapse = "|"), colnames(Dataset))]
@@ -297,6 +318,10 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
 
   setorderv(Dataset, sort_order)
   rm(sort_order)
+  
+  if(exists("tmpname")) if(file.exists(tmpname))  unlink(tmpname)
+  if(exists("tmpname2")) if(file.exists(tmpname2))  unlink(tmpname2)
+ 
   
   return(Dataset)
   

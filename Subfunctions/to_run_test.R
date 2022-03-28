@@ -50,7 +50,7 @@ print(peakRAM(CountPersonTime(
   Outcomes_rec = c("outcome1","outcome2"),
   Unit_of_age = "year",
   include_remaning_ages = T,
-  Aggregate = F,
+  Aggregate = T,
   Rec_period = c(0, 0),
   save_intermediate = paste0("C:/TEST",i,".Rdata"),
   load_intermediate = F,
