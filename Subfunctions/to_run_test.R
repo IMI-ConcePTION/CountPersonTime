@@ -32,7 +32,7 @@ for(i in 1:length(test)){
 source(paste0(thisdir,"/",test[i]))  
 
     
-print(peakRAM(CountPersonTime(
+print(peakRAM(assign(paste0("test",i,"_output"), CountPersonTime(
   
   Dataset_events = EVENTS1, 
   Dataset = PERIODS1,
@@ -58,18 +58,18 @@ print(peakRAM(CountPersonTime(
   print = F
 )
   
-))
+)))
 
 
 }
 
 
 load(paste0("C:/TEST",1,".Rdata"))
-test1 <- Dataset
+test1_intermediate <- Dataset
 load(paste0("C:/TEST",2,".Rdata"))
-test2 <- Dataset
+test2_intermediate <- Dataset
 
 rm(Dataset)
 
-#test1 == test2
+test1_output == test2_output
 

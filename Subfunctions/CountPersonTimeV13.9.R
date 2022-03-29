@@ -126,6 +126,7 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
         Dataset <- Dataset[age_start < ST  ,eval(Start_date) := as.IDate(add_with_rollback(get(Birth_date), period(ST,units = Unit_of_age), roll_to_first = T, preserve_hms = T)), by = row]
         Dataset <- Dataset[age_end > EN  ,eval(End_date) := as.IDate(add_with_rollback(get(Birth_date), period(EN + 1,units = Unit_of_age), roll_to_first = T, preserve_hms = T)) - 1, by = row]
         Dataset <- Dataset[,':=' (age_start = NULL, age_end = NULL,ST = NULL, EN = NULL, row = NULL)]
+        
         }
     }else{Agebands_list = NULL}
   
@@ -170,12 +171,17 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
     
     by_colls <- c(Strata, Increment, "Ageband")  
     sort_order <- c(Person_id, Start_date, "Ageband", Strata)
-    
-    
-    
+  
     }
   
   if(Aggregate) sort_order <- by_colls
+  
+  if(length(c(Outcomes_nrec, Outcomes_rec)) > 0) coln <- c(sort_order, "Persontime", 
+                                                           paste0(c(Outcomes_nrec, Outcomes_rec),"_b"),
+                                                           paste0("Persontime_",c(Outcomes_nrec, Outcomes_rec))
+                                                           )
+  
+  
   
   if(!exists("tmpname") & Aggregate){
     
@@ -329,15 +335,19 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
   
   rm(Outcomes)
   
-
+  Dataset <- Dataset[, coln, with=FALSE]
   setorderv(Dataset, sort_order)
   rm(sort_order)
+
   
+
   if(exists("tmpname")) if(file.exists(tmpname))  unlink(tmpname)
   if(exists("tmpname2")) if(file.exists(tmpname2))  unlink(tmpname2)
- 
+  if(exists("tmpname3")) if(file.exists(tmpname3))  unlink(tmpname3)
+  
   
   return(Dataset)
+  
   
   
   
