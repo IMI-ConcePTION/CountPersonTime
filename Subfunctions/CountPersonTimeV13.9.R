@@ -167,19 +167,19 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
   if(is.null(Age_bands)){
     
     by_colls <- c(Strata, Increment)
-    sort_order <- c(Person_id, Start_date, Strata)}else{
+    sort_order <- c(Person_id, Start_date, End_date, Strata)}else{
     
     by_colls <- c(Strata, Increment, "Ageband")  
-    sort_order <- c(Person_id, Start_date, "Ageband", Strata)
+    sort_order <- c(Person_id, Start_date, End_date, "Ageband", Strata)
   
     }
   
   if(Aggregate) sort_order <- by_colls
   
-  if(length(c(Outcomes_nrec, Outcomes_rec)) > 0) coln <- c(sort_order, "Persontime", 
-                                                           paste0(c(Outcomes_nrec, Outcomes_rec),"_b"),
-                                                           paste0("Persontime_",c(Outcomes_nrec, Outcomes_rec))
-                                                           )
+  if(length(c(Outcomes_nrec, Outcomes_rec)) > 0) coln <- c(sort_order, Increment, "Persontime", 
+                                                           paste0("Persontime_",c(Outcomes_nrec, Outcomes_rec)),
+                                                           paste0(c(Outcomes_nrec, Outcomes_rec),"_b")
+                                                           )else{coln <- c(sort_order, Increment, "Persontime")}
   
   
   
@@ -246,7 +246,9 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
   
   ###Situation where the results should not be aggregated.
   
-  if(exists("tmpname") & !is.null(Outcomes_rec) & (sum(Rec_period == 0) != length(Rec_period))){
+  if(exists("tmpname") & !is.null(Outcomes_rec) & (sum(Rec_period == 0) != length(Rec_period)) |
+     (exists("tmpname") & !is.null(Outcomes_rec) & (sum(Rec_period == 0) == length(Rec_period)) & Aggregate == F) 
+     ){
     
     Dataset_events <- CleanOutcomes(Dataset = readRDS(tmpname), Person_id = "person_id", Rec_period = Rec_period, Outcomes = Outcomes_rec, Name_event = "name_event", Date_event = "date_event")
 
@@ -278,9 +280,11 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
     #Dataset <- copy(temp)
     
     colls <- Outcomes_rec[Rec_period != 0]
+    colls <- colls[paste0("SUBTRCUM_", colls) %in% colnames(Dataset)]
     
     if(!Aggregate){
     lapply(colls, function(x)
+      
       
       Dataset[, eval(paste0("Persontime_", x)) := 
                 
@@ -291,7 +295,7 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
       )
     }else{
       
-      Dataset <- merge(Dataset, readRDS(tmpname3), by = by_colls)
+      Dataset <- merge(x= readRDS(tmpname3), y = Dataset, by = by_colls, all.x = T)
       
       lapply(colls, function(x)
         
@@ -306,10 +310,14 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
       
       
       }
+    
     rm(colls)
     
+    #colls <- Outcomes_rec[Rec_period == 0]
+    colls <- Outcomes_rec[!paste0("Persontime_", Outcomes_rec) %in% colnames(Dataset)]
+    lapply(colls, function(x) Dataset[, eval(paste0("Persontime_", x)) := Persontime])
     
-    lapply(Outcomes_rec[Rec_period == 0], function(x) Dataset[, eval(paste0("Persontime_", x)) := Persontime])
+    rm(colls)
   }
   
   Dataset[is.na(Dataset), ] <- 0
@@ -319,14 +327,14 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
   if(length(Outcomes) > 0 & exists("tmpname")){
     
     
-    colls <- colnames(Dataset)[grepl(pattern = paste0(paste0(Outcomes_rec,"_b"), collapse = "|"), colnames(Dataset))]
+    #colls <- colnames(Dataset)[grepl(pattern = paste0(paste0(Outcomes_rec,"_b"), collapse = "|"), colnames(Dataset))]
     
     
     B_MISSING <- Outcomes[!paste0(Outcomes,"_b") %in% unique(colnames(Dataset))]
     if(length(B_MISSING) > 0) lapply(paste0(B_MISSING,"_b"), function(x){Dataset <- Dataset[,eval(x) := 0]})
     
     P_MISSING <- Outcomes[!paste0("Persontime_",Outcomes) %in% unique(colnames(Dataset))]
-    if(length(P_MISSING) > 0) lapply(paste0("Persontime_",Outcomes), function(x){Dataset <- Dataset[,eval(x) := 0]})
+    if(length(P_MISSING) > 0) lapply(paste0("Persontime_",P_MISSING), function(x){Dataset <- Dataset[,eval(x) := 0]})
     
     rm(P_MISSING, B_MISSING)
     

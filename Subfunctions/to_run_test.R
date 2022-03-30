@@ -47,11 +47,11 @@ print(peakRAM(assign(paste0("test",i,"_output"), CountPersonTime(
   Date_event = "date_event",
   Age_bands = c(0,17,44,64),
   Increment = INC,
-  Outcomes_rec = c("outcome1","outcome2"),
+  Outcomes_rec = c("outcome1","outcome2", "outcome3"),
   Unit_of_age = "year",
   include_remaning_ages = T,
   Aggregate = T,
-  Rec_period = c(0, 0),
+  Rec_period = c(10, 0, 0),
   save_intermediate = paste0("C:/TEST",i,".Rdata"),
   load_intermediate = F,
   check_overlap = F,
@@ -64,12 +64,28 @@ print(peakRAM(assign(paste0("test",i,"_output"), CountPersonTime(
 }
 
 
-load(paste0("C:/TEST",1,".Rdata"))
-test1_intermediate <- Dataset
-load(paste0("C:/TEST",2,".Rdata"))
-test2_intermediate <- Dataset
+#load(paste0("C:/TEST",1,".Rdata"))
+#test1_intermediate <- Dataset
+#load(paste0("C:/TEST",2,".Rdata"))
+#test2_intermediate <- Dataset
 
-rm(Dataset)
+#rm(Dataset)
 
-test1_output == test2_output
+
+prepare <- function(file, cols){
+
+file<- copy(file)[, cols, with = F]  
+lapply(cols, function(x) file[, eval(x) := as.character(get(x))])
+setorderv(file, cols)
+}
+
+test1_output <- prepare(test1_output, colnames(test1_output))
+test2_output <- prepare(test2_output, colnames(test1_output))
+
+
+
+compare2 <-  test1_output == test2_output
+test2 <- sum(compare2==F)
+test2.1 <- sum(is.na(compare2))
+
 
