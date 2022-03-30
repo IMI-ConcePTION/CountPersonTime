@@ -225,7 +225,6 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
     
     
   
-  if(!is.null(Age_bands)){Age_band_coln<-"Ageband"} else Age_band_coln<-"Ageband"<-NULL
   
   
   #Enlarge table by time increment. 
@@ -256,6 +255,7 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
   } 
   
   }
+  if(!is.null(Age_bands)){Age_band_coln<-"Ageband"} else Age_band_coln<-"Ageband"<-NULL
   
   
   #NEW CODE V11 If recurrent events is true. This is a whole different approach compared to the situation where only the first

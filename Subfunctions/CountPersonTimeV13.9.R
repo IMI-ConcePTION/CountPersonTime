@@ -35,8 +35,15 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
   if (load_intermediate) {
     if (!missing(save_intermediate) && file.exists(save_intermediate)) {
       load(save_intermediate)
+      tmpname <- tempfile(pattern = "events", tmpdir = tempdir(), fileext = ".rds")
+      saveRDS(Dataset_events, tmpname)
+      
+      
     } else {
       Dataset <- as.data.table(Dataset)
+      tmpname <- tempfile(pattern = "events", tmpdir = tempdir(), fileext = ".rds")
+      saveRDS(Dataset_events, tmpname)
+      
     }
   } else {
     
@@ -162,6 +169,7 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
     save(Dataset, file = save_intermediate)
   } 
   
+  }
   #add parameters for rest of script
   ###
   if(is.null(Age_bands)){
@@ -256,8 +264,14 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
     if(print) print("Calculate recurrent events not aggregated")
   
     
-    Dataset <- CalculateSubstractionDenominator(
-      Dataset = Dataset,
+    set1 <- Dataset[person_id %in% unique(Dataset_events$person_id),]
+    set2 <- Dataset[!person_id %in% unique(Dataset_events$person_id),]
+    rm(Dataset)
+    
+    mergeback <- colnames(set1)[!colnames(set1) %in% c("Persontime")]
+    
+    SUB <- CalculateSubstractionDenominator(
+      Dataset = set1[, ..mergeback],
       Start_date = Start_date,
       End_date = End_date,
       Dataset_events = Dataset_events,
@@ -274,6 +288,24 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
     )
     
     rm(Dataset_events)
+    gc()
+    
+    if(Aggregate){
+    set1 <- set1[, .(Persontime = sum(Persontime)) , by = by_colls]
+    set2 <- set2[, .(Persontime = sum(Persontime)) , by = by_colls]
+    mergeback <- mergeback[!mergeback %in% c(Start_date, End_date, Person_id, Birth_date)]
+    Dataset <- rbindlist(list(set1, set2), fill = T, use.names = T)
+    Dataset <- Dataset[, .(Persontime = sum(Persontime)) , by = by_colls]
+    Dataset <-  merge(Dataset, SUB, by = mergeback, all.x = T)
+    }
+    
+    if(!Aggregate){
+    Dataset <-  merge(set1, SUB, by = mergeback, all.x = T)
+    Dataset <- rbindlist(list(Dataset, set2), fill = T, use.names = T)
+    }
+    
+    
+    rm(mergeback, set1, set2, SUB)
     gc()
     
     #temp <- copy(Dataset)
@@ -295,7 +327,7 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
       )
     }else{
       
-      Dataset <- merge(x= readRDS(tmpname3), y = Dataset, by = by_colls, all.x = T)
+      #Dataset <- merge(x= readRDS(tmpname3), y = Dataset, by = by_colls, all.x = T)
       
       lapply(colls, function(x)
         
@@ -366,6 +398,6 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
   
   }
   
-}
+
   
   
