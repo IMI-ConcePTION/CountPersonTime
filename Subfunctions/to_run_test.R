@@ -93,9 +93,11 @@ setorderv(file, cols)
 peakRAM(set1 <- test2_output[person_id %in% unique(EVENTS1$person_id),])
 peakRAM(set2 <- test2_output[!person_id %in% unique(EVENTS1$person_id),])
 
+mergeback <- colnames(set1)[!colnames(set1) %in% c("Persontime")]
+
 peakRAM(SUB <- CalculateSubstractionDenominator(
   
-  Dataset = set1,
+  Dataset = set1[, ..mergeback],
   Start_date = "start_date",
   End_date = "end_date",
   Dataset_events = EVENTS1,
@@ -104,12 +106,26 @@ peakRAM(SUB <- CalculateSubstractionDenominator(
   Date_event = "date_event",
   Outcomes_rec = c("outcome1", "outcome2"),
   Rec_period = c(10, 10),
-  Aggregate = T,
+  Aggregate = F,
   Strata = c("sex","city", "Ageband", INC),
   Include_count = T,
   print = F
   
 ))
+
+#if(Aggregate){}
+peakRAM(set1 <- set1[, .(Persontime = sum(Persontime)) , by = c("sex","city", "Ageband", INC)])
+peakRAM(set2 <- set2[, .(Persontime = sum(Persontime)) , by = c("sex","city", "Ageband", INC)])
+mergeback <- mergeback[!mergeback %in% c(Start_date, End_date, Person_id)]
+#}
+
+peakRAM(aatest <-  merge(set1, SUB, by = mergeback, all.x = T))
+
+peakRAM(aatest2 <- rbindlist(list(aatest, set2), fill = T, use.names = T))
+
+
+
+
 
 
 
