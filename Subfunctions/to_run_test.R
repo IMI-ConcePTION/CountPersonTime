@@ -16,7 +16,7 @@ thisdir <- setwd(dirname(rstudioapi::getSourceEditorContext()$path))
 EVENTS1 <- readRDS(paste0(thisdir,"/EVENTS1.rds"))
 PERIODS1 <- readRDS(paste0(thisdir,"/PERIODS1.rds"))
 
-INC <- "month"
+INC <- "day"
 
 source("CleanOutcomes.R")
 source("CreateAgebandIntervals.R")
@@ -34,7 +34,7 @@ source(paste0(thisdir,"/",test[i]))
     
 print(peakRAM(assign(paste0("test",i,"_output"), CountPersonTime(
   
-  Dataset_events = EVENTS1, 
+  #Dataset_events = EVENTS1, 
   Dataset = PERIODS1,
   Person_id = "person_id",
   Start_study_time = "20150101",
@@ -47,11 +47,11 @@ print(peakRAM(assign(paste0("test",i,"_output"), CountPersonTime(
   Date_event = "date_event",
   Age_bands = c(0,17,44,64),
   Increment = INC,
-  Outcomes_rec = c("outcome1","outcome2", "outcome3"),
+  #Outcomes_rec = c("outcome1", "outcome2"),
   Unit_of_age = "year",
-  include_remaning_ages = T,
-  Aggregate = T,
-  Rec_period = c(10, 0, 0),
+  include_remaning_ages = F,
+  Aggregate = F,
+  #Rec_period = c(10, 10),
   save_intermediate = paste0("C:/TEST",i,".Rdata"),
   load_intermediate = F,
   check_overlap = F,
@@ -79,13 +79,39 @@ lapply(cols, function(x) file[, eval(x) := as.character(get(x))])
 setorderv(file, cols)
 }
 
-test1_output <- prepare(test1_output, colnames(test1_output))
-test2_output <- prepare(test2_output, colnames(test1_output))
+#test1_output <- prepare(test1_output, colnames(test1_output))
+#test2_output <- prepare(test2_output, colnames(test1_output))
 
 
 
-compare2 <-  test1_output == test2_output
-test2 <- sum(compare2==F)
-test2.1 <- sum(is.na(compare2))
+#compare2 <-  test1_output == test2_output
+#test2 <- sum(compare2==F)
+#test2.1 <- sum(is.na(compare2))
+
+
+
+peakRAM(set1 <- test2_output[person_id %in% unique(EVENTS1$person_id),])
+peakRAM(set2 <- test2_output[!person_id %in% unique(EVENTS1$person_id),])
+
+peakRAM(SUB <- CalculateSubstractionDenominator(
+  
+  Dataset = set1,
+  Start_date = "start_date",
+  End_date = "end_date",
+  Dataset_events = EVENTS1,
+  Person_id = "person_id",
+  Name_event = "name_event",
+  Date_event = "date_event",
+  Outcomes_rec = c("outcome1", "outcome2"),
+  Rec_period = c(10, 10),
+  Aggregate = T,
+  Strata = c("sex","city", "Ageband", INC),
+  Include_count = T,
+  print = F
+  
+))
+
+
+
 
 

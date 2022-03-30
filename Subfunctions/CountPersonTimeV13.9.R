@@ -115,7 +115,7 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
         #### New code from version 13.6
         
         #Produce a dataset with Agebands and the start and end age of that ageband. This can be used to merge top all cases in the Dataset that overlap with the start and end age. 
-        Agebands_list <-  CreateAgebandIntervals(Age_bands, include = T)
+        Agebands_list <-  CreateAgebandIntervals(Age_bands, include = include_remaning_ages)
       
         #Merge the overlapping
         setkeyv(Dataset, c("age_start","age_end"))
