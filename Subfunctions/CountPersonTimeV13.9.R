@@ -11,6 +11,7 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
                             print = F, check_overlap = T, save_intermediate = NULL, load_intermediate = F){
   
   if(print) print("Version 13.9")
+  
   # Check if demanded R packages are installed, install if not,  and activate
   ################################################################################################################################
   if(print) print("Check packages data.table and lubridate")
@@ -21,10 +22,24 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
   library(lubridate)
   ################################################################################################################################
   
+  
+  #Check some basic assumptions
+  ################################################################################################################################
   if(!is.null(Dataset_events) & length(c(Outcomes_nrec, Outcomes_rec)) == 0) stop("No events specified in Outcomes_rec or Outcomes_nrec")
   if(is.null(Dataset_events) & length(c(Outcomes_nrec, Outcomes_rec)) > 0) stop("No Dataset_events specified while Outcomes_rec or Outcomes_nrec are specified")
   if(any(Outcomes_rec %in% Outcomes_nrec)){stop("Overlapping event names for Outcomes_rec and Outcomes_nrec")}
   if(length(Outcomes_rec) != length(Rec_period)) stop("Outcomes_rec and Rec_period are not of the same length")
+  ################################################################################################################################
+  
+  #Store datasets that are needed later in the process in temp files to reduce in memeory load
+  ################################################################################################################################
+  if(!is.null(Dataset_events)){
+    tmpname <- tempfile(pattern = "events", tmpdir = tempdir(), fileext = ".rds")
+    saveRDS(Dataset_events, tmpname) 
+    rm(Dataset_events)
+    gc()
+  }
+  ################################################################################################################################
   
   if (!is.logical(load_intermediate)) {stop("Parameter 'load_intermediate' accepts only logical constants")}
   if (!missing(save_intermediate)) {
@@ -35,14 +50,9 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
   if (load_intermediate) {
     if (!missing(save_intermediate) && file.exists(save_intermediate)) {
       load(save_intermediate)
-      tmpname <- tempfile(pattern = "events", tmpdir = tempdir(), fileext = ".rds")
-      saveRDS(Dataset_events, tmpname)
-      
-      
+     
     } else {
       Dataset <- as.data.table(Dataset)
-      tmpname <- tempfile(pattern = "events", tmpdir = tempdir(), fileext = ".rds")
-      saveRDS(Dataset_events, tmpname)
       
     }
   } else {
@@ -59,28 +69,13 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
     )
     gc()
     
-    #Select relevant data
+    #Select relevant spells
     ################################################################################################################################
     intv <- as.IDate(c(Start_study_time, End_study_time))
   
     Dataset <- Dataset[, c(Person_id, Start_date, End_date, Birth_date, Strata) , with = F][get(Start_date) %between% intv|get(End_date) %between% intv|(get(Start_date) < Start_study_time & get(End_date) > End_study_time)] 
     
-    if(!is.null(Dataset_events)){
-    Dataset_events <- Dataset_events[, c(Person_id, Name_event, Date_event) , with = F][
-        get(Date_event) %between% intv & 
-        get(Name_event) %in% c(Outcomes_nrec, Outcomes_rec) &
-        get(Person_id) %in% unique(Dataset[[Person_id]])  
-      , ]
-    
-    
-    tmpname <- tempfile(pattern = "events", tmpdir = tempdir(), fileext = ".rds")
-    saveRDS(Dataset_events, tmpname)
-    
-    }
-    
-    rm(Dataset_events)
-    gc()
-    
+
     if(nrow(Dataset) == 0){
       Dataset <- NULL
       if(print) print("No subjects with any observation time within studyperiod. NULL is returned")
@@ -91,52 +86,36 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
     Dataset[get(End_date) > End_study_time,eval(End_date) := End_study_time]
     
     
-    tmpname2 <- tempfile(pattern = "periods", tmpdir = tempdir(), fileext = ".rds")
-    saveRDS(Dataset, tmpname2)
-  
-    #Determine the ages at the beginning and end of all observation periods. Output is a starting point for calculation and splitting of
-    # age bands
-    ################################################################################################################################
-    if(!is.null(Age_bands)){
-      
-      if(print) print(paste0("Calculate ages at the start and end of every observation period by ", Increment))
-      
-      if (nrow(Dataset) > 0){
-        
-        Dataset[, age_start := floor(time_length(interval(get(Birth_date), get(Start_date)), Unit_of_age)) ]
-        Dataset[, age_end := floor(time_length(interval(get(Birth_date), get(End_date)), Unit_of_age)) ]
-        
-      } else{
-        Dataset[,age_start := NA]
-        Dataset[,age_end := NA]
-      }   
-      
-    }
-    ################################################################################################################################
     
-    #Calculate agebands in 2 steps ((1)split/recalculate start/end ages and (assign row to ageband) )
-    ################################################################################################################################
+    
+  #Determine age bands per person level spell
+  ################################################################################################################################
+    
+    #Create file with all the needed agebands
+    ###
+    
     if(!is.null(Age_bands)){
-      if(print) print("Create agebands")
-      if(nrow(Dataset) > 0){
-        #### New code from version 13.6
-        
-        #Produce a dataset with Agebands and the start and end age of that ageband. This can be used to merge top all cases in the Dataset that overlap with the start and end age. 
-        Agebands_list <-  CreateAgebandIntervals(Age_bands, include = include_remaning_ages)
+      Agebands_list <-  CreateAgebandIntervals(Age_bands, include = include_remaning_ages)
       
-        #Merge the overlapping
-        setkeyv(Dataset, c("age_start","age_end"))
-        Dataset <- foverlaps(Agebands_list, Dataset, by.x = c("ST","EN"), nomatch = 0L, type = "any")
-        
-        # select the rows that doubled by the merge. In these, multiple agebands occur witing the obeservation period. So start and end dated need to be adapted
-        Dataset <- Dataset[, row := row.names(Dataset)]
-        Dataset <- Dataset[age_start < ST  ,eval(Start_date) := as.IDate(add_with_rollback(get(Birth_date), period(ST,units = Unit_of_age), roll_to_first = T, preserve_hms = T)), by = row]
-        Dataset <- Dataset[age_end > EN  ,eval(End_date) := as.IDate(add_with_rollback(get(Birth_date), period(EN + 1,units = Unit_of_age), roll_to_first = T, preserve_hms = T)) - 1, by = row]
-        Dataset <- Dataset[,':=' (age_start = NULL, age_end = NULL,ST = NULL, EN = NULL, row = NULL)]
-        
-        }
-    }else{Agebands_list = NULL}
+    }else{
+      Agebands_list = NULL
+    }
+    
+    #Create file with agebands for every spell. If multiple agebands in a spell than split the spell.
+    ###
+    
+    Dataset <- SplitSpellsAgeBands(
+      Dataset = Dataset,
+      Start_date = Start_date,
+      End_date = End_date,
+      Birth_date = Birth_date,
+      Unit_of_age = Unit_of_age,
+      Agebands_list = Agebands_list,
+      print = print
+    )
+  ################################################################################################################################  
   
+      
   #Enlarge table by time increment. 
   ################################################################################################################################
   
@@ -151,27 +130,34 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
   
   Dataset <- Dataset[get(Start_date) <= get(Increment) & get(End_date) >= get(Increment),eval(Start_date) := get(Increment)]
   Dataset <-Dataset[get(End_date) >= End & get(Start_date) <= End, eval(End_date) := End][, End := NULL]
-  
-  #rm(Dummy)
   gc()
   
   ################################################################################################################################
   
-  #if(!is.null(Age_bands)){Age_band_coln <- "Ageband"} else Age_band_coln<-"Ageband" <- NULL
+  
+  #Calculate person times and if needed create the intermediate file. 
+  ################################################################################################################################
   
   if(print) print("Calculate general persontime")
-  
   Dataset[,Persontime := .(get(End_date) - get(Start_date) + 1)]
+  
+  if(print) print("Prepare increment column")
   if(Increment=="month"){Dataset[,eval(Increment) := substr(get(Increment),1,7)]}
   if(Increment=="year"){Dataset[,eval(Increment) := substr(get(Increment),1,4)]}
   
   if (!missing(save_intermediate)) {
-    save(Dataset, file = save_intermediate)
+    if(print) print("Save intermediate table")
+    save(Dataset, intv, file = save_intermediate)
+    
   } 
   
   }
-  #add parameters for rest of script
-  ###
+  
+  ################################################################################################################################
+  
+  #add column parameters for rest of script. These varaibles are used for selction, sorting or aggrgating.
+  ################################################################################################################################
+  
   if(is.null(Age_bands)){
     
     by_colls <- c(Strata, Increment)
@@ -189,81 +175,72 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
                                                            paste0(c(Outcomes_nrec, Outcomes_rec),"_b")
                                                            )else{coln <- c(sort_order, Increment, "Persontime")}
   
+  ################################################################################################################################
   
   
+  #If there is no events dataset saved as tmpname, then do the aggregation if needed.
+  ################################################################################################################################
   if(!exists("tmpname") & Aggregate){
-    
     Dataset <- Dataset[, lapply(.SD, sum), .SDcols = "Persontime", by = by_colls]
+  }
+  ################################################################################################################################
   
+
+  #If there is a events dataset saved as tmpname, then load and prepare
+  ################################################################################################################################
+  
+  if(exists("tmpname")){
+    Dataset_events <- readRDS(tmpname)[, c(Person_id, Name_event, Date_event) , with = F][
+      get(Date_event) %between% intv & 
+        get(Name_event) %in% c(Outcomes_nrec, Outcomes_rec) &
+        get(Person_id) %in% unique(Dataset[[Person_id]])  
+      , ]
+    
   }
   
+  #Separate recurrent from not recurrent events and clean the recurrent events with lag time > 0
+  
+  if(!is.null(Outcomes_nrec)) Dataset_events_nrec <- Dataset_events[get(Name_event) %in% Outcomes_nrec,]
+  
+  if(!is.null(Outcomes_rec)){
+    if((sum(Rec_period == 0) != length(Rec_period)) & exists("Dataset_events")){
+      
+        rec1 <- Outcomes_rec[ Outcomes_rec  %in% Outcomes_rec[!Rec_period == 0]]
+        rec0 <- Outcomes_rec[!Outcomes_rec %in% rec1]
+        Rec_period1 <- Rec_period[Outcomes_rec %in% rec1]
+          
+        Dataset_events1 <- Dataset_events[get(Name_event) %in% rec1,]
+        Dataset_events0 <- Dataset_events[get(Name_event) %in% rec0,]
+        
+        rm(Dataset_events)
+        gc()
+              
+        Dataset_events1 <- CleanOutcomes(Dataset = Dataset_events1, Person_id = "person_id", Rec_period = Rec_period, Outcomes = Outcomes_rec, Name_event = "name_event", Date_event = "date_event")[, Iteration := NULL]
+        
+        Dataset_events <- rbindlist(list(Dataset_events0, Dataset_events1), use.names = T, fill = T)
+        
+        rm(Dataset_events0, Dataset_events1)
+        gc()
   
   
-  if((sum(Rec_period == 0) != length(Rec_period)) & Aggregate & exists("tmpname")){
-    
-    tmpname3 <- tempfile(pattern = "persontime", tmpdir = tempdir(), fileext = ".rds")
-    saveRDS(Dataset[, lapply(.SD, sum), .SDcols = "Persontime", by = by_colls], tmpname3)
-    
-    
-  }
+    }
+  }else{
+    rm(Dataset_events)
+    gc()
+    }
   
-  ###
+  ################################################################################################################################  
+  
   
   #Recurrent events
-  ####
+  ################################################################################################################################
   
-  #Situation where results are be aggregated and all rec_periods are 0 
-  ####
   
-  if(Aggregate == T & exists("tmpname") & (sum(Rec_period == 0) == length(Rec_period))){
-  
-    if(print)print("Calculate aggregated resuts for recurrent events if only rec_periods of 0")   
+  if(exists("Dataset_events") & !is.null(Outcomes_rec)){
     
-    Dataset <- Dataset[, lapply(.SD, sum), .SDcols = "Persontime", by = by_colls]
-    lapply(by_colls, function(x) Dataset[, eval(x) := as.character(get(x))])
-    
-    
-      Events <- CalculateNumeratorAggregated(
-        
-            Dataset = readRDS(tmpname2)[, c(Person_id, Start_date, End_date, Birth_date, Strata), with = F],
-            Person_id = Person_id,
-            Start_date = Start_date, 
-            End_date = End_date, 
-            Dataset_events = readRDS(tmpname), 
-            Agebands.file = Agebands_list, 
-            Times.file = Dummy, 
-            Name_event = Name_event, 
-            Date_event = Date_event, 
-            Birth_date = Birth_date, 
-            Strata = by_colls
-        
-      )
-      
-      Dataset <- merge(x = Dataset, y = Events, by = by_colls, all.x = T )   
-      Dataset[is.na(Dataset), ] <- 0
-      lapply(Outcomes_rec[Rec_period == 0], function(x) Dataset[, eval(paste0("Persontime_", x)) := Persontime])
-      
-  }
-  
-  
-  ####
-  
-  
-  
-  
-  
-  ###Situation where the results should not be aggregated.
-  
-  if(exists("tmpname") & !is.null(Outcomes_rec) & (sum(Rec_period == 0) != length(Rec_period)) |
-     (exists("tmpname") & !is.null(Outcomes_rec) & (sum(Rec_period == 0) == length(Rec_period)) & Aggregate == F) 
-     ){
-    
-    Dataset_events <- CleanOutcomes(Dataset = readRDS(tmpname), Person_id = "person_id", Rec_period = Rec_period, Outcomes = Outcomes_rec, Name_event = "name_event", Date_event = "date_event")
-
     
     if(print) print("Calculate recurrent events not aggregated")
   
-    
     set1 <- Dataset[person_id %in% unique(Dataset_events$person_id),]
     set2 <- Dataset[!person_id %in% unique(Dataset_events$person_id),]
     rm(Dataset)
@@ -350,7 +327,10 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
     lapply(colls, function(x) Dataset[, eval(paste0("Persontime_", x)) := Persontime])
     
     rm(colls)
+    gc()
   }
+  
+  ################################################################################################################################
   
   Dataset[is.na(Dataset), ] <- 0
 
@@ -379,11 +359,8 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
   setorderv(Dataset, sort_order)
   rm(sort_order)
 
-  
-
   if(exists("tmpname")) if(file.exists(tmpname))  unlink(tmpname)
-  if(exists("tmpname2")) if(file.exists(tmpname2))  unlink(tmpname2)
-  if(exists("tmpname3")) if(file.exists(tmpname3))  unlink(tmpname3)
+  #if(exists("tmpname3")) if(file.exists(tmpname3))  unlink(tmpname3)
   
   
   return(Dataset)

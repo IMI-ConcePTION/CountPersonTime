@@ -13,8 +13,15 @@ thisdir <- setwd(dirname(rstudioapi::getSourceEditorContext()$path))
 
 
 
-EVENTS1 <- readRDS(paste0(thisdir,"/EVENTS1.rds"))
-PERIODS1 <- readRDS(paste0(thisdir,"/PERIODS1.rds"))
+EVENTS1 <- readRDS("C:/Users/relbers/Documents/GitHub/CoutPersonTime/big_events.rds")
+PERIODS1 <- readRDS("C:/Users/relbers/Documents/GitHub/CoutPersonTime/big_times.rds")
+
+id <- sample(unique(PERIODS1$person_id),10000)
+
+PERIODS1 <- PERIODS1[person_id %in% id,]
+EVENTS1 <-  EVENTS1[person_id %in% id,]
+#EVENTS1 <- readRDS(paste0(thisdir,"/EVENTS1.rds"))
+#PERIODS1 <- readRDS(paste0(thisdir,"/PERIODS1.rds"))
 
 INC <- "month"
 
@@ -24,8 +31,16 @@ source("CreateTimeIntervals.R")
 source("CheckAndPrepareDates.R")
 source("CalculateSubtractionDenominator.R")
 source("CalculateNumeratorAggregated.R")
+source("SplitSpellsAgeBands.R")
+
+
 
 test <- c("CountPersonTimeV13.8.R", "CountPersonTimeV13.9.R")
+
+#Settings
+Aggregate <- T
+
+
 
 for(i in 1:length(test)){
 
@@ -49,9 +64,9 @@ print(peakRAM(CountPersonTime(
   #Outcomes_rec = c("outcome1", "outcome2"),
   Unit_of_age = "year",
   include_remaning_ages = F,
-  Aggregate = F,
+  Aggregate = Aggregate,
   #Rec_period = c(10, 10),
-  save_intermediate = paste0("C:/TEST",i,".Rdata"),
+  save_intermediate = paste0("D:/TEST",i,".Rdata"),
   load_intermediate = F,
   check_overlap = F,
   print = F
@@ -63,9 +78,9 @@ print(peakRAM(CountPersonTime(
 }
 
 
-load(paste0("C:/TEST",1,".Rdata"))
+load(paste0("D:/TEST",1,".Rdata"))
 test1_intermediate <- Dataset
-load(paste0("C:/TEST",2,".Rdata"))
+load(paste0("D:/TEST",2,".Rdata"))
 test2_intermediate <- Dataset
 
 #rm(Dataset)
@@ -109,9 +124,9 @@ for(i in 1:length(test)){
     Outcomes_rec = c("outcome1", "outcome2"),
     Unit_of_age = "year",
     include_remaning_ages = F,
-    Aggregate = F,
+    Aggregate = Aggregate,
     Rec_period = c(10, 10),
-    save_intermediate = paste0("C:/TEST",i,".Rdata"),
+    save_intermediate = paste0("D:/TEST",i,".Rdata"),
     load_intermediate = T,
     check_overlap = F,
     print = F

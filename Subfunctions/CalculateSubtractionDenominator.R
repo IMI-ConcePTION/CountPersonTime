@@ -119,9 +119,19 @@ if(nrow(Dataset_events_rec1) > 0){
   gc()
   
   if(Aggregate){
-    if(Include_count){Dataset <- merge(Dataset1, Dataset2, all = T, by = Strata)
-    rm(Dataset1, Dataset2)
-    gc()
+    
+
+    if(Include_count){
+      if(exists("Dataset2")){ 
+        Dataset <- merge(Dataset1, Dataset2, all = T, by = Strata)
+        rm(Dataset1, Dataset2)
+        gc()
+      }else{
+        Dataset <- Dataset1
+        rm(Dataset1)
+        gc()
+        }
+    
     }else{
       Dataset <- Dataset2
       rm(Dataset2)
