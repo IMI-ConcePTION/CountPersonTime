@@ -14,15 +14,15 @@ thisdir <- setwd(dirname(rstudioapi::getSourceEditorContext()$path))
 
 
 
-#EVENTS1 <- readRDS("C:/Users/relbers/Documents/GitHub/CoutPersonTime/big_events.rds")
-#PERIODS1 <- readRDS("C:/Users/relbers/Documents/GitHub/CoutPersonTime/big_times.rds")
+EVENTS1 <- readRDS("C:/Users/relbers/Documents/GitHub/CoutPersonTime/big_events.rds")
+PERIODS1 <- readRDS("C:/Users/relbers/Documents/GitHub/CoutPersonTime/big_times.rds")
 
-#id <- sample(unique(PERIODS1$person_id),10000)
+id <- sample(unique(PERIODS1$person_id),10000)
 
-#PERIODS1 <- PERIODS1[person_id %in% id,]
-#EVENTS1 <-  EVENTS1[person_id %in% id,]
-EVENTS1 <- readRDS(paste0(thisdir,"/EVENTS1.rds"))
-PERIODS1 <- readRDS(paste0(thisdir,"/PERIODS1.rds"))
+PERIODS1 <- PERIODS1[person_id %in% id,]
+EVENTS1 <-  EVENTS1[person_id %in% id,]
+#EVENTS1 <- readRDS(paste0(thisdir,"/EVENTS1.rds"))
+#PERIODS1 <- readRDS(paste0(thisdir,"/PERIODS1.rds"))
 
 INC <- "month"
 
@@ -60,13 +60,13 @@ for(i in 1:length(test)){
     Date_event = "date_event",
     Age_bands = c(0,17,44,64),
     Increment = INC,
-    Outcomes_rec = c("outcome1", "outcome2","test"),
+    Outcomes_rec = c("outcome1", "outcome2"),
     Unit_of_age = "year",
     include_remaning_ages = F,
     Aggregate = Aggregate,
-    Rec_period = c(0, 0,0),
+    Rec_period = c(10, 10),
     #save_intermediate = paste0("D:/TEST",i,".Rdata"),
-    #load_intermediate = F,
+    #load_intermediate = T,
     check_overlap = F,
     print = F
   )

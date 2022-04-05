@@ -38,7 +38,7 @@ source("SplitSpellsAgeBands.R")
 test <- c("CountPersonTimeV13.8.R", "CountPersonTimeV13.9.R")
 
 #Settings
-Aggregate <- T
+Aggregate <- F
 
 
 
@@ -99,7 +99,7 @@ compare1 <-  test1_intermediate == test2_intermediate
 test1 <- sum(compare1==F)
 test1.1 <- sum(is.na(compare1))
 
-rm(test1_intermediate, test2_intermediate, compare1, PERIODS1,  Dataset)
+rm(test1_intermediate, test2_intermediate, compare1,  Dataset)
 gc()
 
 for(i in 1:length(test)){
