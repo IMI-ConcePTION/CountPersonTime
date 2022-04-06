@@ -33,11 +33,12 @@ source("CheckAndPrepareDates.R")
 source("CalculateSubtractionDenominator.R")
 source("CalculateNumeratorAggregated.R")
 source("SplitSpellsAgeBands.R")
+source("CalculateNumeratorNotRecurrent.R")
 
 test <- c("CountPersonTimeV13.8.R", "CountPersonTimeV13.9.R")
 
 #Settings
-Aggregate <- T
+Aggregate <- F
 
 
 
@@ -60,11 +61,11 @@ for(i in 1:length(test)){
     Date_event = "date_event",
     Age_bands = c(0,17,44,64),
     Increment = INC,
-    Outcomes_rec = c("outcome1", "outcome2"),
+    Outcomes_nrec = c("outcome1", "outcome2"),
     Unit_of_age = "year",
     include_remaning_ages = F,
     Aggregate = Aggregate,
-    Rec_period = c(10, 10),
+    #Rec_period = c(10, 10),
     #save_intermediate = paste0("D:/TEST",i,".Rdata"),
     #load_intermediate = T,
     check_overlap = F,

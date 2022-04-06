@@ -191,7 +191,7 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
   
   if(exists("tmpname")){
     Dataset_events <- readRDS(tmpname)[, c(Person_id, Name_event, Date_event) , with = F][
-      get(Date_event) %between% intv & 
+      #get(Date_event) %between% intv & 
         get(Name_event) %in% c(Outcomes_nrec, Outcomes_rec) &
         get(Person_id) %in% unique(Dataset[[Person_id]])  
       , ]
@@ -231,6 +231,63 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
   
   ################################################################################################################################  
   
+  
+  #Not recurrent events
+  ################################################################################################################################
+  
+  if(exists("Dataset_events_nrec") & !is.null(Outcomes_nrec)){
+    
+    set1 <- Dataset[person_id %in% unique(Dataset_events_nrec$person_id),]
+    set2 <- Dataset[!person_id %in% unique(Dataset_events_nrec$person_id),]
+    
+    rm(Dataset)
+    gc()
+    
+    SUB <- CalculateNumeratorNotRecurrent(
+                
+                Dataset_events = Dataset_events_nrec, 
+                Dataset = set1, 
+                Person_id = Person_id,
+                Start_date = Start_date,
+                End_date = End_date, 
+                Strata = Strata, 
+                Outcomes_nrec = Outcomes_nrec,
+                Name_event = Name_event, 
+                Date_event = Date_event,  
+                Aggregate = F,
+                print = print 
+                
+                )
+    
+    rm(set1)  
+    gc()  
+    
+    colls <- paste0("Persontime_",Outcomes_nrec)
+    colls <- colls[colls %in% colnames(SUB)]
+    lapply(colls, function(x) set2 <- set2[, eval(x) := Persontime])
+    rm(colls)
+      
+    Dataset <- rbindlist(list(SUB, set2), fill = T, use.names = T)
+    Dataset[is.na(Dataset), ] <- 0
+    
+    if(Aggregate){
+      
+      
+      colls <- c("Persontime",paste0(Outcomes_nrec,"_b"),paste0("Persontime_",Outcomes_nrec))
+      colls <- colls[colls %in% colnames(Dataset)]
+      
+      Dataset <- Dataset[, lapply(.SD, sum), .SDcols = colls, by = by_colls]
+      rm(colls)
+      
+    }
+    
+    rm(set2)
+    gc()
+  
+  }
+  ################################################################################################################################  
+    
+    
   
   #Recurrent events
   ################################################################################################################################
