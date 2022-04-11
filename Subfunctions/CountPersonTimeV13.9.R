@@ -31,6 +31,27 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
   if(length(Outcomes_rec) != length(Rec_period)) stop("Outcomes_rec and Rec_period are not of the same length")
   ################################################################################################################################
   
+  #Set character labels to integer id's
+  ################################################################################################################################
+  
+  if (!load_intermediate) {
+  Dataset <- SetToInteger(Data = Dataset, colls = c(Person_id, Strata))
+  Dictionary <-  Dataset$Dictionary
+  Dataset <- Dataset$Data
+  }
+  
+  if(!is.null(Dataset_events)) Dataset_events <- RenameId(Data = Dataset_events, colls = "person_id", Dictionary = Dictionary, AddId = T)
+  
+  if (!load_intermediate) {
+  tmpname_dic <- tempfile(pattern = "dic", tmpdir = tempdir(), fileext = ".rds")
+  saveRDS(Dictionary,  tmpname_dic) 
+  rm(Dictionary)
+  gc()
+  }
+  
+  ################################################################################################################################
+  
+  
   #Store datasets that are needed later in the process in temp files to reduce in memeory load
   ################################################################################################################################
   if(!is.null(Dataset_events)){
@@ -64,6 +85,9 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
     End_study_time <- as.IDate(as.character(End_study_time),"%Y%m%d")
     ################################################################################################################################
     
+    
+    
+    
     CheckAndPrepareDates(Dataset = Dataset, Person_id = Person_id, Start_study = Start_study_time, End_study = End_study_time, Start_date = Start_date, End_date = End_date, 
                           Birth_date = Birth_date, Age_bands = Age_bands, Increment = Increment, print = print, check_overlap = check_overlap
     )
@@ -95,7 +119,9 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
     ###
     
     if(!is.null(Age_bands)){
-      Agebands_list <-  CreateAgebandIntervals(Age_bands, include = include_remaning_ages)
+      Agebands_list <-  CreateAgebandIntervals(ages = Age_bands, include = include_remaning_ages)
+      
+      
       
     }else{
       Agebands_list = NULL
@@ -110,7 +136,7 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
       End_date = End_date,
       Birth_date = Birth_date,
       Unit_of_age = Unit_of_age,
-      Agebands_list = Agebands_list,
+      Agebands_list = Agebands_list[, .(Ageband, ST, EN)],
       print = print
     )
   ################################################################################################################################  
@@ -124,12 +150,38 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
   
   #Create a file with the relevant time intervals like with age bands.This is used for joining with the aim to assign labels 
   Dummy <- CreateTimeIntervals(Start_study_time = Start_study_time, End_study_time = End_study_time, Increment = Increment)
+  Dummy[, ID := as.integer(row.names(Dummy))]
     
   setkeyv(Dataset, c(Start_date, End_date))
   Dataset <- foverlaps(Dummy, Dataset, by.x=c(Increment, "End"), nomatch = 0L, type = "any")
   
   Dataset <- Dataset[get(Start_date) <= get(Increment) & get(End_date) >= get(Increment),eval(Start_date) := get(Increment)]
-  Dataset <-Dataset[get(End_date) >= End & get(Start_date) <= End, eval(End_date) := End][, End := NULL]
+  Dataset <-Dataset[get(End_date) >= End & get(Start_date) <= End, eval(End_date) := End][, `:=`  (End = NULL, month = NULL)]
+  #Dataset2 <- merge(Dataset, Dummy[, c(Increment, "ID"), with = F], by = "ID", all.x = T )[, `:=`  (month = NULL)]
+  setnames(Dataset, "ID", Increment)
+  
+  
+  gc()
+  
+  #Add id's for timing to dictionary
+  ################################################################################################################################
+  
+  
+  if(Increment=="month"){Dummy[,eval(Increment) := substr(get(Increment),1,7)]}
+  if(Increment=="year"){Dummy[,eval(Increment) := substr(get(Increment),1,4)]}
+  
+  Dictionary <-  readRDS(tmpname_dic)
+  Dictionary[[Increment]] <- Dummy[, c(Increment, "ID"), with = F]
+  
+  if(!is.null(Agebands_list)){
+    Dictionary[["Ageband"]] <- as.data.table(cbind(Ageband = Agebands_list$Label, ID = Agebands_list$Ageband))[, ID := as.integer(ID)][, Ageband := as.character(Ageband)]
+    
+  }
+  
+
+  saveRDS(Dictionary, tmpname_dic )
+  
+  rm(Dictionary)
   gc()
   
   ################################################################################################################################
@@ -141,14 +193,13 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
   if(print) print("Calculate general persontime")
   Dataset[,Persontime := .(get(End_date) - get(Start_date) + 1)]
   
-  if(print) print("Prepare increment column")
-  if(Increment=="month"){Dataset[,eval(Increment) := substr(get(Increment),1,7)]}
-  if(Increment=="year"){Dataset[,eval(Increment) := substr(get(Increment),1,4)]}
   
   if (!missing(save_intermediate)) {
     if(print) print("Save intermediate table")
-    save(Dataset, intv, file = save_intermediate)
-    
+    Dictionary <-  readRDS(tmpname_dic)
+    save(Dataset, intv, Dictionary,  file = save_intermediate)
+    rm(Dictionary)
+    gc()
   } 
   
   }
@@ -412,11 +463,21 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
   
   rm(Outcomes)
   
+  
+  
+  Dictionary <-  readRDS(tmpname_dic)
+  if(Aggregate){colls <- names(Dictionary)[!names(Dictionary) %in% Person_id]}else{colls <- names(Dictionary)}
+  
+  Dataset <- RenameId(Data = Dataset, colls = colls , Dictionary = Dictionary, AddId = F)
+  rm(Dictionary, colls)
+  gc()
+  
   Dataset <- Dataset[, coln, with=FALSE]
   setorderv(Dataset, sort_order)
   rm(sort_order)
 
   if(exists("tmpname")) if(file.exists(tmpname))  unlink(tmpname)
+  if(exists("tmpname_dic")) if(file.exists(tmpname_dic))  unlink(tmpname_dic)
   #if(exists("tmpname3")) if(file.exists(tmpname3))  unlink(tmpname3)
   
   

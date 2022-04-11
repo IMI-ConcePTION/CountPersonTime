@@ -33,6 +33,7 @@ source("CalculateSubtractionDenominator.R")
 source("CalculateNumeratorAggregated.R")
 source("SplitSpellsAgeBands.R")
 source("CalculateNumeratorNotRecurrent.R")
+source("SetToInteger.R")
 
 
 test <- c("CountPersonTimeV13.8.R", "CountPersonTimeV13.9.R")

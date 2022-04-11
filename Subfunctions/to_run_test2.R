@@ -17,7 +17,7 @@ thisdir <- setwd(dirname(rstudioapi::getSourceEditorContext()$path))
 EVENTS1 <- readRDS("C:/Users/relbers/Documents/GitHub/CoutPersonTime/big_events.rds")
 PERIODS1 <- readRDS("C:/Users/relbers/Documents/GitHub/CoutPersonTime/big_times.rds")
 
-id <- sample(unique(PERIODS1$person_id),10000)
+id <- sample(unique(PERIODS1$person_id),100000)
 
 PERIODS1 <- PERIODS1[person_id %in% id,]
 EVENTS1 <-  EVENTS1[person_id %in% id,]
@@ -34,6 +34,7 @@ source("CalculateSubtractionDenominator.R")
 source("CalculateNumeratorAggregated.R")
 source("SplitSpellsAgeBands.R")
 source("CalculateNumeratorNotRecurrent.R")
+source("SetToInteger.R")
 
 test <- c("CountPersonTimeV13.8.R", "CountPersonTimeV13.9.R")
 

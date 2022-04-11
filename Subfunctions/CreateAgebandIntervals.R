@@ -14,11 +14,11 @@ CreateAgebandIntervals <- function(ages, include){
         }
         
         Agebands_list <- as.data.table(do.call(rbind, Agebands_list))
-        colnames(Agebands_list)<- "Ageband"
+        colnames(Agebands_list)<- "Label"
         
-        Agebands_list[,row := row.names(Agebands_list) ]
-        Agebands_list[,ST := as.numeric(gsub("[^[:digit:].]", "\\1",strsplit(as.character(Ageband),"-")[[1]][1])),by = row ]
-        Agebands_list[,EN := as.numeric(gsub("[^[:digit:].]", "\\1",strsplit(as.character(Ageband),"-")[[1]][2])),by = row ]
+        Agebands_list[,Ageband := as.integer(row.names(Agebands_list)) ]
+        Agebands_list[,ST := as.numeric(gsub("[^[:digit:].]", "\\1",strsplit(as.character(Label),"-")[[1]][1])),by = Ageband ]
+        Agebands_list[,EN := as.numeric(gsub("[^[:digit:].]", "\\1",strsplit(as.character(Label),"-")[[1]][2])),by = Ageband ]
         Agebands_list[is.na(EN),EN := 4000 ]
         
 }
