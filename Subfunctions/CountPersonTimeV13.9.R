@@ -467,7 +467,6 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
   rm(Outcomes)
   
   
-  
   Dictionary <-  readRDS(tmpname_dic)
   if(Aggregate){colls <- names(Dictionary)[!names(Dictionary) %in% Person_id]}else{colls <- names(Dictionary)}
   
