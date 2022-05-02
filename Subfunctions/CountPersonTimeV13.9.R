@@ -123,9 +123,7 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
       
       
       
-    }else{
-      Agebands_list = NULL
-    }
+    
     
     #Create file with agebands for every spell. If multiple agebands in a spell than split the spell.
     ###
@@ -139,6 +137,11 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
       Agebands_list = Agebands_list[, .(Ageband, ST, EN)],
       print = print
     )
+    
+  }else{
+    Agebands_list = NULL
+  }  
+    
   ################################################################################################################################  
   
       
