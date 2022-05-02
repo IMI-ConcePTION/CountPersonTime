@@ -123,9 +123,7 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
       
       
       
-    }else{
-      Agebands_list = NULL
-    }
+    
     
     #Create file with agebands for every spell. If multiple agebands in a spell than split the spell.
     ###
@@ -139,6 +137,11 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
       Agebands_list = Agebands_list[, .(Ageband, ST, EN)],
       print = print
     )
+    
+  }else{
+    Agebands_list = NULL
+  }  
+    
   ################################################################################################################################  
   
       
@@ -156,7 +159,7 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
   Dataset <- foverlaps(Dummy, Dataset, by.x=c(Increment, "End"), nomatch = 0L, type = "any")
   
   Dataset <- Dataset[get(Start_date) <= get(Increment) & get(End_date) >= get(Increment),eval(Start_date) := get(Increment)]
-  Dataset <-Dataset[get(End_date) >= End & get(Start_date) <= End, eval(End_date) := End][, `:=`  (End = NULL, month = NULL)]
+  Dataset <-Dataset[get(End_date) >= End & get(Start_date) <= End, eval(End_date) := End][, `:=`  (End = NULL, eval(Increment) = NULL)]
   #Dataset2 <- merge(Dataset, Dummy[, c(Increment, "ID"), with = F], by = "ID", all.x = T )[, `:=`  (month = NULL)]
   setnames(Dataset, "ID", Increment)
   
@@ -462,7 +465,6 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
   }
   
   rm(Outcomes)
-  
   
   
   Dictionary <-  readRDS(tmpname_dic)
