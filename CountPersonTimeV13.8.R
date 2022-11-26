@@ -258,7 +258,15 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
   }
   
   browser()
+  splits <- c("sex","city")
+  Dataset <- split(Dataset, by = splits)
+  for (i in Dataset) {
+    saveRDS(Dataset[[i]], file = "temp_CPT")
+  }
   
+  for (i in Dataset) {
+    
+  }
   
   #NEW CODE V11 If recurrent events is true. This is a whole different approach compared to the situation where only the first
   # event is used. When joining multiple doubling will occur. I choose to do not do this and choose a method only allowing joins 
