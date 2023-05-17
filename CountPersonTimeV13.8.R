@@ -8,7 +8,7 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
                             End_date, Birth_date = NULL,Rec_period = NULL, Strata = NULL,Outcomes_nrec = NULL,
                             Outcomes_rec = NULL, Name_event = NULL, Date_event = NULL, Age_bands = NULL,
                             Unit_of_age = "year" , Increment = "year", include_remaning_ages = T, Aggregate = T,
-                            print = F, check_overlap = T, save_intermediate = NULL, load_intermediate = F){
+                            print = F, check_overlap = T, save_intermediate = NULL, load_intermediate = F, split_by = NULL){
   
   if(print) print("Version 13.8")
   # Check if demanded R packages are installed, install if not,  and activate
@@ -27,11 +27,16 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
   if (!is.logical(load_intermediate)) {stop("Parameter 'load_intermediate' accepts only logical constants")}
   if (!missing(save_intermediate)) {
     tryCatch(dirname(save_intermediate), error = function(e)
-      stop("Parameter 'save_intermediate' accepts only valid filepaths with already existing folders"))
+      stop("Parameter 'save_intermediate' accepts only valid folders"))
+    
+    # Sanitize save_intermediate
+    save_intermediate <- gsub("[\\\\|/]$", "", save_intermediate)
   }
   
+  
+  
   if (load_intermediate) {
-    if (!missing(save_intermediate) && file.exists(save_intermediate)) {
+    if (!missing(save_intermediate) && file.exists(file.path(save_intermediate, "CPT_intermediate.rds"))) {
       load(save_intermediate)
     } else {
       Dataset <- as.data.table(Dataset)
@@ -227,69 +232,114 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
     
     if(!is.null(Age_bands)){Age_band_coln<-"Ageband"} else Age_band_coln<-"Ageband"<-NULL
     
-    
     #Enlarge table by time increment. 
     ################################################################################################################################
     
+    int.check <- function(vect) {
+      vect <- as.character(vect)
+      sapply(vect, function(x) all(unlist(strsplit(x, "")) %in% 0:9))
+    }
+    
+    check_columns_exist <- function(start_df, columns) {
+      colnames(start_df)[grepl(paste(columns, collapse = "|"), colnames(start_df))]
+    }
+    
+    split_by_int <- split_by[int.check(split_by)]
+    split_by_exist <- check_columns_exist(Dataset, split_by)
+    split_by_not_in_strata <- setdiff(split_by_exist, Strata)
+    split_by_unknown <- setdiff(split_by, c(split_by_int, split_by_exist))
+    
+    if (missing(split_by)) {
+      split_by_int <- c()
+      split_by_exist <- c()
+      split_by_not_in_strata <- c()
+      split_by_unknown <- c()
+    }
+    
+    if (length(split_by_not_in_strata) != 0) {
+      stop(sprintf("Some values in split_by argument are columns of the Dataset but are not inside the parameter Strata: %s",
+                   paste(split_by_not_in_strata, collapse = ", ")))
+    }
+    
+    if (length(split_by_unknown) != 0) {
+      stop(sprintf("Some values in split_by argument are not columns in Dataset or are not integer: %s",
+                   paste(split_by_unknown, collapse = ", ")))
+    }
     
     if(print) print(paste0("Transform input date to a dataset per ", Increment, ". This step increases the size of the file with respect to the choosen increment" ))
-    
-    Dummy <- as.data.table(cbind(Increment = Time_Increment,End = Time_Increment_end))
+
+    Dummy <- as.data.table(cbind(Increment = Time_Increment, End = Time_Increment_end))
     Dummy <- Dummy[, Increment := as.IDate(Increment)]
     Dummy <- Dummy[, End := as.IDate(End)]
-    colnames(Dummy) <- c(Increment,"End")
-    
-    
+    colnames(Dummy) <- c(Increment, "End")
     setkeyv(Dataset, c(Start_date, End_date))
-    Dataset <- foverlaps(Dummy, Dataset, by.x=c(Increment, "End"), nomatch = 0L, type = "any")
     
-    Dataset <- Dataset[get(Start_date) <= get(Increment) & get(End_date) >= get(Increment),eval(Start_date) := get(Increment)]
-    Dataset <-Dataset[get(End_date) >= End & get(Start_date) <= End, eval(End_date) := End][, End := NULL]
+    if (length(split_by_int) > 0) {
+      
+      # Transform split_by_int from character to size of splitted datsets
+      split_by_int <- as.integer(split_by_int)
+      
+      if (length(split_by_int) > 1) stop("Argument split_by accept only one integer argument inside the vector")
+      
+      if (split_by_int == 0) {
+        stop(sprintf("Some values in split_by argument are not columns in Dataset or are not integer: %s",
+                     paste(split_by_unknown, collapse = ", ")))
+      }
+      
+      Dummy <- split(Dummy[, flag := ceiling(seq_len(.N) / split_by_int)], by = "flag", keep.by = F)
+      n_strips_dummy <- length(Dummy)
+      for (i in seq_len(n_strips_dummy)) {
+        saveRDS(Dummy[[i]], file = file.path(save_intermediate, paste0("dummy_CPT_", i, ".rds")))
+      }
+    } else {
+      n_strips_dummy <- 1
+    }
     
-    rm(Dummy)
-    gc()
+    if (length(split_by_exist) > 0) {
+      Dataset <- split(Dataset, by = split_by_exist)
+      n_strips_dataset <- length(Dataset)
+      for (i in seq_len(n_strips_dataset)) {
+        saveRDS(Dataset[[i]], file = file.path(save_intermediate, paste0("dataset_CPT_", i, ".rds")))
+      }
+    } else {
+      n_strips_dataset <- 1
+    }
     
-    ################################################################################################################################
+    n_strips <- n_strips_dummy * n_strips_dataset
     
-    if (!missing(save_intermediate)) {
-      save(Dataset, file = save_intermediate)
-    } 
+    i = 1
+    for (du in 1:n_strips_dummy) {
+      if (n_strips_dummy != 1) Dummy <- readRDS(file.path(save_intermediate, paste0("dummy_CPT_", du, ".rds")))
+      for (da in 1:n_strips_dataset) {
+        if (n_strips_dataset != 1) Dataset <- readRDS(file.path(save_intermediate, paste0("dataset_CPT_", da, ".rds")))
+        
+        large_temp_CPT <- foverlaps(Dummy, Dataset, by.x=c(Increment, "End"), nomatch = 0L, type = "any")
+        large_temp_CPT[get(Start_date) <= get(Increment) & get(End_date) >= get(Increment),eval(Start_date) := get(Increment)]
+        large_temp_CPT[get(End_date) >= End & get(Start_date) <= End, eval(End_date) := End][, End := NULL]
+        
+        if (n_strips > 1) {
+          saveRDS(large_temp_CPT, file = file.path(save_intermediate, paste0("large_temp_CPT_", i, ".rds")))
+        } else {
+          
+          Dataset <- large_temp_CPT
+          if (!missing(save_intermediate)) {
+            saveRDS(Dataset, file = file.path(save_intermediate, paste0("CPT_intermediate.rds")))
+          }
+          
+        }
+        i = i + 1
+      }
+    }
     
+    if (n_strips_dummy != 1) for (du in 1:n_strips_dummy) file.remove(file.path(save_intermediate, paste0("dummy_CPT_", du, ".rds")))
+    if (n_strips_dataset != 1) for (da in 1:n_strips_dataset) file.remove(file.path(save_intermediate, paste0("dataset_CPT_", da, ".rds")))
+    
+    sprintf("Dataset has been splitted in %s stripes", n_strips)
   }
-  
-  browser()
-  splits <- c("sex","city")
-  
-  split_by_1 <- "sex"
-  split_by_2 <- 5
-  split_by_3 <- c("sex","city", 5, 1.4)
-  
-  int.check <- function(vect) {
-    vect <- as.character(vect)
-    sapply(vect, function(x) all(unlist(strsplit(x, "")) %in% 0:9))
-  }
-  
-  x <- c(2.0, 1111,"2x", 2.4)
-  x <- c(2.0)
-  split_by_int <- x[int.check(x)]
-  
-  if (length(split_by_int) > 1) {
-    stop("Argument split_by accept only one integer argument inside the vector")
-  } else if (length(split_by_int) == 1) {
-    split_by_int
-  }
-  
-  
-  Dataset <- split(Dataset, by = splits)
-  n_strips <- length(Dataset)
-  sprintf("Dataset has been splitted in %s stripes", n_strips)
   
   for (i in seq_len(n_strips)) {
-    saveRDS(Dataset[[i]], file = paste0("large_temp_CPT_", i))
-  }
-  
-  for (i in seq_len(n_strips)) {
-    Dataset <- readRDS(paste0("large_temp_CPT_", i))
+    
+    if (n_strips > 1) Dataset <- readRDS(file.path(save_intermediate, paste0("large_temp_CPT_", i, ".rds")))
     
     #NEW CODE V11 If recurrent events is true. This is a whole different approach compared to the situation where only the first
     # event is used. When joining multiple doubling will occur. I choose to do not do this and choose a method only allowing joins 
@@ -307,7 +357,6 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
     
     #Create a boolean for if there are any events at all so we can remove Dataset_events and spare RAM
     if(!(is.null(Dataset_events) | (is.null(Outcomes_rec) & is.null(Outcomes_nrec)))){Dataset_events_b <- T} else{Dataset_events_b <- F}
-    
     
     if (Dataset_events_b) {
       
@@ -335,8 +384,6 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
         Dataset_events_rec <- copy(Dataset_events)[get(Name_event) %in% Outcomes_rec ,]
         colls_outcomes_rec <- Outcomes_rec[Outcomes_rec %in% Dataset_events_rec[,get(Name_event)]]
         
-        
-        rm(Dataset_events)
         gc()
         
         if(Rec_events & nrow(Dataset_events_rec) > 0){
@@ -634,10 +681,18 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
       
     }
     
-    saveRDS(Dataset, file = paste0("small_temp_CPT_", i))
+    saveRDS(Dataset, file = file.path(save_intermediate, paste0("small_temp_CPT_", i, ".rds")))
+    
+    if (n_strips > 1) file.remove(file.path(save_intermediate, paste0("large_temp_CPT_", i, ".rds")))
   }
   
-  Dataset <- rbindlist(lapply(paste0("small_temp_CPT_", seq_len(n_strips))))
+  if (n_strips > 1) {
+    Dataset <- rbindlist(lapply(seq_len(n_strips),
+                                function(x) readRDS(file.path(save_intermediate, paste0("small_temp_CPT_", x, ".rds")))))
+    for (n_s in seq_len(n_strips)) {
+      file.remove(file.path(save_intermediate, paste0("small_temp_CPT_", n_s, ".rds")))
+    }
+  }
   
   return(Dataset)
   ################################################################################################################################
@@ -645,9 +700,3 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
   gc()
   
 }
-
-
-
-
-
-
