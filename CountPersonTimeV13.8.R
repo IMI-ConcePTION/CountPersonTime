@@ -8,7 +8,7 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
                             End_date, Birth_date = NULL,Rec_period = NULL, Strata = NULL,Outcomes_nrec = NULL,
                             Outcomes_rec = NULL, Name_event = NULL, Date_event = NULL, Age_bands = NULL,
                             Unit_of_age = "year" , Increment = "year", include_remaning_ages = T, Aggregate = T,
-                            print = F, check_overlap = T, save_intermediate = NULL, load_intermediate = F, split_by = NULL){
+                            print = F, check_overlap = T, intermediate_folder = NULL, save_or_load = NULL, split_by = NULL){
   
   if(print) print("Version 13.8")
   # Check if demanded R packages are installed, install if not,  and activate
@@ -24,20 +24,23 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
   
   if(any(Outcomes_rec %in% Outcomes_nrec)){stop("Overlapping event names for Outcomes_rec and Outcomes_nrec")}
   
-  if (!is.logical(load_intermediate)) {stop("Parameter 'load_intermediate' accepts only logical constants")}
-  if (!missing(save_intermediate)) {
-    tryCatch(dirname(save_intermediate), error = function(e)
-      stop("Parameter 'save_intermediate' accepts only valid folders"))
+  if (!missing(intermediate_folder)) {
+    tryCatch(dirname(intermediate_folder), error = function(e)
+      stop("Parameter 'intermediate_folder' accepts only valid folders"))
     
-    # Sanitize save_intermediate
-    save_intermediate <- gsub("[\\\\|/]$", "", save_intermediate)
+    # Sanitize intermediate_folder
+    intermediate_folder <- gsub("[\\\\|/]$", "", intermediate_folder)
+  }
+  
+  if (!missing(split_by) & missing(intermediate_folder)) {
+    stop("Please provide a folder where to store the splitted temporary datasets")
   }
   
   
   
-  if (load_intermediate) {
-    if (!missing(save_intermediate) && file.exists(file.path(save_intermediate, "CPT_intermediate.rds"))) {
-      load(save_intermediate)
+  if (!missing(save_or_load) && save_or_load == "load") {
+    if (!missing(intermediate_folder) && file.exists(file.path(intermediate_folder, "CPT_intermediate.rds"))) {
+      load(intermediate_folder)
     } else {
       Dataset <- as.data.table(Dataset)
     }
@@ -249,7 +252,7 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
     split_by_not_in_strata <- setdiff(split_by_exist, Strata)
     split_by_unknown <- setdiff(split_by, c(split_by_int, split_by_exist))
     
-    if (missing(split_by)) {
+    if (missing(split_by) | is.null(split_by)) {
       split_by_int <- c()
       split_by_exist <- c()
       split_by_not_in_strata <- c()
@@ -267,13 +270,14 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
     }
     
     if(print) print(paste0("Transform input date to a dataset per ", Increment, ". This step increases the size of the file with respect to the choosen increment" ))
-
+    
     Dummy <- as.data.table(cbind(Increment = Time_Increment, End = Time_Increment_end))
     Dummy <- Dummy[, Increment := as.IDate(Increment)]
     Dummy <- Dummy[, End := as.IDate(End)]
     colnames(Dummy) <- c(Increment, "End")
     setkeyv(Dataset, c(Start_date, End_date))
     
+    n_strips_dummy <- 1
     if (length(split_by_int) > 0) {
       
       # Transform split_by_int from character to size of splitted datsets
@@ -286,20 +290,23 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
                      paste(split_by_unknown, collapse = ", ")))
       }
       
-      Dummy <- split(Dummy[, flag := ceiling(seq_len(.N) / split_by_int)], by = "flag", keep.by = F)
-      n_strips_dummy <- length(Dummy)
-      for (i in seq_len(n_strips_dummy)) {
-        saveRDS(Dummy[[i]], file = file.path(save_intermediate, paste0("dummy_CPT_", i, ".rds")))
+      if (nrow(Dummy) > split_by_int) {
+        Dummy[, flag := ceiling(seq_len(.N) / split_by_int)]
+        
+        Dummy <- split(Dummy, by = "flag", keep.by = F)
+        n_strips_dummy <- length(Dummy)
+        
+        for (i in seq_len(n_strips_dummy)) {
+          saveRDS(Dummy[[i]], file = file.path(intermediate_folder, paste0("dummy_CPT_", i, ".rds")))
+        }
       }
-    } else {
-      n_strips_dummy <- 1
     }
     
     if (length(split_by_exist) > 0) {
       Dataset <- split(Dataset, by = split_by_exist)
       n_strips_dataset <- length(Dataset)
       for (i in seq_len(n_strips_dataset)) {
-        saveRDS(Dataset[[i]], file = file.path(save_intermediate, paste0("dataset_CPT_", i, ".rds")))
+        saveRDS(Dataset[[i]], file = file.path(intermediate_folder, paste0("dataset_CPT_", i, ".rds")))
       }
     } else {
       n_strips_dataset <- 1
@@ -309,21 +316,23 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
     
     i = 1
     for (du in 1:n_strips_dummy) {
-      if (n_strips_dummy != 1) Dummy <- readRDS(file.path(save_intermediate, paste0("dummy_CPT_", du, ".rds")))
+      if (n_strips_dummy != 1) Dummy <- readRDS(file.path(intermediate_folder, paste0("dummy_CPT_", du, ".rds")))
       for (da in 1:n_strips_dataset) {
-        if (n_strips_dataset != 1) Dataset <- readRDS(file.path(save_intermediate, paste0("dataset_CPT_", da, ".rds")))
+        if (n_strips_dataset != 1 | length(split_by_exist) > 0) {
+          Dataset <- readRDS(file.path(intermediate_folder, paste0("dataset_CPT_", da, ".rds")))
+        }
         
         large_temp_CPT <- foverlaps(Dummy, Dataset, by.x=c(Increment, "End"), nomatch = 0L, type = "any")
         large_temp_CPT[get(Start_date) <= get(Increment) & get(End_date) >= get(Increment),eval(Start_date) := get(Increment)]
         large_temp_CPT[get(End_date) >= End & get(Start_date) <= End, eval(End_date) := End][, End := NULL]
         
         if (n_strips > 1) {
-          saveRDS(large_temp_CPT, file = file.path(save_intermediate, paste0("large_temp_CPT_", i, ".rds")))
+          saveRDS(large_temp_CPT, file = file.path(intermediate_folder, paste0("large_temp_CPT_", i, ".rds")))
         } else {
           
           Dataset <- large_temp_CPT
-          if (!missing(save_intermediate)) {
-            saveRDS(Dataset, file = file.path(save_intermediate, paste0("CPT_intermediate.rds")))
+          if (!missing(intermediate_folder) && !missing(save_or_load) && save_or_load == "save") {
+            saveRDS(Dataset, file = file.path(intermediate_folder, paste0("CPT_intermediate.rds")))
           }
           
         }
@@ -331,15 +340,15 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
       }
     }
     
-    if (n_strips_dummy != 1) for (du in 1:n_strips_dummy) file.remove(file.path(save_intermediate, paste0("dummy_CPT_", du, ".rds")))
-    if (n_strips_dataset != 1) for (da in 1:n_strips_dataset) file.remove(file.path(save_intermediate, paste0("dataset_CPT_", da, ".rds")))
+    if (n_strips_dummy != 1) for (du in 1:n_strips_dummy) file.remove(file.path(intermediate_folder, paste0("dummy_CPT_", du, ".rds")))
+    if (n_strips_dataset != 1) for (da in 1:n_strips_dataset) file.remove(file.path(intermediate_folder, paste0("dataset_CPT_", da, ".rds")))
     
     sprintf("Dataset has been splitted in %s stripes", n_strips)
   }
   
-  for (i in seq_len(n_strips)) {
+  for (j in seq_len(n_strips)) {
     
-    if (n_strips > 1) Dataset <- readRDS(file.path(save_intermediate, paste0("large_temp_CPT_", i, ".rds")))
+    if (n_strips > 1) Dataset <- readRDS(file.path(intermediate_folder, paste0("large_temp_CPT_", j, ".rds")))
     
     #NEW CODE V11 If recurrent events is true. This is a whole different approach compared to the situation where only the first
     # event is used. When joining multiple doubling will occur. I choose to do not do this and choose a method only allowing joins 
@@ -401,8 +410,7 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
           Rec_period1 <- Rec_period[Outcomes_rec %in% Outcomes_rec1]
           
           #Delete Rec_period to be sure it is not used anymore further in the script. It should be matched with Outcomes_rec1  
-          rm(Rec_period)
-          
+          #rm(Rec_period)
           
           #Split the events in 2 datasets 
           Dataset_events_rec2  <- copy(Dataset_events_rec)[get(Name_event) %in% Outcomes_rec1]
@@ -681,16 +689,15 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
       
     }
     
-    saveRDS(Dataset, file = file.path(save_intermediate, paste0("small_temp_CPT_", i, ".rds")))
-    
-    if (n_strips > 1) file.remove(file.path(save_intermediate, paste0("large_temp_CPT_", i, ".rds")))
+    saveRDS(Dataset, file = file.path(intermediate_folder, paste0("small_temp_CPT_", j, ".rds")))
+    if (n_strips > 1) file.remove(file.path(intermediate_folder, paste0("large_temp_CPT_", j, ".rds")))
   }
   
   if (n_strips > 1) {
     Dataset <- rbindlist(lapply(seq_len(n_strips),
-                                function(x) readRDS(file.path(save_intermediate, paste0("small_temp_CPT_", x, ".rds")))))
+                                function(x) readRDS(file.path(intermediate_folder, paste0("small_temp_CPT_", x, ".rds")))))
     for (n_s in seq_len(n_strips)) {
-      file.remove(file.path(save_intermediate, paste0("small_temp_CPT_", n_s, ".rds")))
+      file.remove(file.path(intermediate_folder, paste0("small_temp_CPT_", n_s, ".rds")))
     }
   }
   
