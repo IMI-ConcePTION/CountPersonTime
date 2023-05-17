@@ -10,7 +10,7 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
                             Unit_of_age = "year" , Increment = "year", include_remaning_ages = T, Aggregate = T,
                             print = F, check_overlap = T, intermediate_folder = NULL, save_or_load = NULL, split_by = NULL){
   
-  if(print) print("Version 13.8")
+  if(print) print("Version 14.0")
   # Check if demanded R packages are installed, install if not,  and activate
   ################################################################################################################################
   if(print) print("Check packages data.table and lubridate")
