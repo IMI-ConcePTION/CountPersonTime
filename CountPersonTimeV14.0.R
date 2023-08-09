@@ -5,8 +5,8 @@
 #Date: 15/07/2021
 
 CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_study_time, End_study_time, Start_date,
-                            End_date, Birth_date = NULL,Rec_period = NULL, Strata = NULL,Outcomes_nrec = NULL,
-                            Outcomes_rec = NULL, Name_event = NULL, Date_event = NULL, Age_bands = NULL,
+                            End_date, Birth_date = NULL, Strata = NULL,Outcomes_nrec = NULL, Outcomes_rec = NULL,
+                            Rec_period = NULL, Name_event = NULL, Date_event = NULL, Age_bands = NULL,
                             Unit_of_age = "year" , Increment = "year", include_remaning_ages = T, Aggregate = T,
                             print = F, check_overlap = T, intermediate_folder = NULL, save_or_load = NULL, split_by = NULL){
   
