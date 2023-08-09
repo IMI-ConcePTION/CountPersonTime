@@ -204,8 +204,8 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
         Agebands_list <- list()
         
         for (k in 1:length(Age_bands)){
-          if(k < length(Age_bands)) Agebands_list_new[[k]] <- paste0(Age_bands[k], "-", Age_bands[k])
-          if(k == length(Age_bands) & include_remaning_ages == T) Agebands_list_new[[k]] <- paste0(Age_bands[k], "+")
+          if(k < length(Age_bands)) Agebands_list[[k]] <- paste0(Age_bands[k], "-", Age_bands[k])
+          if(k == length(Age_bands) & include_remaning_ages == T) Agebands_list[[k]] <- paste0(Age_bands[k], "+")
           }
         
         Agebands_list <- as.data.table(do.call(rbind, Agebands_list))
