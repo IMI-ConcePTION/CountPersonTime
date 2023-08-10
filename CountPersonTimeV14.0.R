@@ -203,11 +203,17 @@ CountPersonTime <- function(Dataset_events = NULL, Dataset, Person_id, Start_stu
         #Produce a dataset with Agebands and the start and end age of that ageband. This can be used to merge top all cases in the Dataset that overlap with the start and end age. 
         Agebands_list <- list()
         
-        for (k in 1:length(Age_bands)){
-          if(k <= length(Age_bands)) Agebands_list[[k]] <- paste0(Age_bands[k], "-", Age_bands[k])
-          if(k == length(Age_bands) & include_remaning_ages == T) Agebands_list[[k+1]] <- paste0(Age_bands[k]+1, "+")
+        for (k in 1:length(Age_bands)) {
+          if (max(Age_bands) > length(Age_bands)) {
+            if( k == 1) Agebands_list[[k]] <- paste0(Age_bands[k], "-", Age_bands[k+1])
+            if( k > 1 & k != length(Age_bands)) Agebands_list[[k]] <- paste0(Age_bands[k]+1, "-", Age_bands[k+1])          
+            if( k == length(Age_bands) & include_remaning_ages == T) Agebands_list[[k]] <- paste0(Age_bands[k]+1, "+")
+          } else {
+            if(k <= length(Age_bands)) Agebands_list[[k]] <- paste0(Age_bands[k], "-", Age_bands[k])
+            if(k == length(Age_bands) & include_remaning_ages == T) Agebands_list[[k+1]] <- paste0(Age_bands[k]+1, "+")
           }
-        
+        }
+
         Agebands_list <- as.data.table(do.call(rbind, Agebands_list))
         colnames(Agebands_list)<- "Ageband"
         
