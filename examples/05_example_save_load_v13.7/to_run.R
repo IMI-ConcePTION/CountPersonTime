@@ -9,7 +9,7 @@ thisdir <- setwd(dirname(rstudioapi::getSourceEditorContext()$path))
 thisdir <- setwd(dirname(rstudioapi::getSourceEditorContext()$path))
 
 #load function
-source(paste0(thisdir,"/../../CountPersonTimeV13.8.R"))
+source(paste0(thisdir,"/../../CountPersonTimeV14.0.R"))
 
 # load data.table
 if (!require("data.table")) install.packages("data.table")
@@ -44,7 +44,7 @@ standard <- CountPersonTime(
   Unit_of_age = "year",
   include_remaning_ages = T,
   Aggregate = F,
-  save_intermediate = file.path(thisdir, "intermediate"),
+  intermediate_folder = file.path(thisdir, "intermediate"),
   split_by = c("sex","city", 2)
 )
 
