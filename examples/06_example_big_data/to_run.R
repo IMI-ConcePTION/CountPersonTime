@@ -9,7 +9,7 @@ thisdir <- setwd(dirname(rstudioapi::getSourceEditorContext()$path))
 thisdir <- setwd(dirname(rstudioapi::getSourceEditorContext()$path))
 
 #load function
-source(paste0(thisdir,"/../../CountPersonTimeV13.8.R"))
+source(paste0(thisdir,"/../../CountPersonTimeV14.0.R"))
 
 # load data.table
 if (!require("data.table")) install.packages("data.table")
@@ -21,7 +21,7 @@ library(truncnorm)
 
 # Create dummy data
 set.seed(123)
-n_row <- 100000
+n_row <- 100
 mean_periods_per_person <- 1.5
 
 fake_ids <- sprintf("%010d", sample(seq_len(round(n_row/mean_periods_per_person)), n_row, replace = T))
@@ -83,5 +83,6 @@ standard <- CountPersonTime(
   Outcomes_nrec =c("outcome1","outcome2"),
   Unit_of_age = "year",
   include_remaning_ages = T,
+  intermediate_folder = file.path(thisdir, "intermediate"),
   Aggregate = F
 )
